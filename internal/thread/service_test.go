@@ -4,15 +4,21 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"chorus/internal/domain"
+	"chorus/internal/idgen"
 	"chorus/internal/repository/memory"
 	"chorus/internal/thread"
 )
 
 func TestThreadService_Operations(t *testing.T) {
 	repo := memory.NewThreadRepository()
-	svc := thread.NewService(repo)
+	gen := idgen.NewRandomIDGenerator()
+	fixedTime := time.Date(2026, 7, 22, 12, 0, 0, 0, time.UTC)
+	mockClock := func() time.Time { return fixedTime }
+
+	svc := thread.NewService(repo, gen, mockClock)
 	ctx := context.Background()
 
 	t.Run("create thread and list", func(t *testing.T) {
@@ -25,6 +31,9 @@ func TestThreadService_Operations(t *testing.T) {
 		}
 		if th.ID == "" {
 			t.Errorf("expected non-empty thread ID")
+		}
+		if !th.CreatedAt.Equal(fixedTime) {
+			t.Errorf("expected timestamp %v, got %v", fixedTime, th.CreatedAt)
 		}
 
 		threads, err := svc.ListThreads(ctx)

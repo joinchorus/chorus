@@ -8,21 +8,26 @@ import (
 	"chorus/internal/thread"
 )
 
-type threadRepository struct {
+// ThreadRepository is a thread-safe in-memory storage implementation for threads and messages.
+type ThreadRepository struct {
 	mu       sync.RWMutex
 	threads  map[string]*thread.Thread
 	messages map[string][]*thread.Message
 }
 
-// NewThreadRepository returns a thread-safe in-memory thread repository.
-func NewThreadRepository() thread.Repository {
-	return &threadRepository{
+// NewThreadRepository constructs a concrete in-memory thread repository.
+func NewThreadRepository() *ThreadRepository {
+	return &ThreadRepository{
 		threads:  make(map[string]*thread.Thread),
 		messages: make(map[string][]*thread.Message),
 	}
 }
 
-func (r *threadRepository) SaveThread(_ context.Context, t *thread.Thread) error {
+func (r *ThreadRepository) SaveThread(ctx context.Context, t *thread.Thread) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -35,7 +40,11 @@ func (r *threadRepository) SaveThread(_ context.Context, t *thread.Thread) error
 	return nil
 }
 
-func (r *threadRepository) FindThreadByID(_ context.Context, id string) (*thread.Thread, error) {
+func (r *ThreadRepository) FindThreadByID(ctx context.Context, id string) (*thread.Thread, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -47,7 +56,11 @@ func (r *threadRepository) FindThreadByID(_ context.Context, id string) (*thread
 	return &copied, nil
 }
 
-func (r *threadRepository) ListThreads(_ context.Context) ([]*thread.Thread, error) {
+func (r *ThreadRepository) ListThreads(ctx context.Context) ([]*thread.Thread, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -59,7 +72,11 @@ func (r *threadRepository) ListThreads(_ context.Context) ([]*thread.Thread, err
 	return result, nil
 }
 
-func (r *threadRepository) SaveMessage(_ context.Context, m *thread.Message) error {
+func (r *ThreadRepository) SaveMessage(ctx context.Context, m *thread.Message) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -72,7 +89,11 @@ func (r *threadRepository) SaveMessage(_ context.Context, m *thread.Message) err
 	return nil
 }
 
-func (r *threadRepository) ListMessagesByThreadID(_ context.Context, threadID string) ([]*thread.Message, error) {
+func (r *ThreadRepository) ListMessagesByThreadID(ctx context.Context, threadID string) ([]*thread.Message, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

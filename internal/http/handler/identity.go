@@ -1,24 +1,32 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"chorus/internal/http/httputil"
 	"chorus/internal/identity"
 )
 
-// IdentityHandler handles identity-related HTTP requests.
-type IdentityHandler struct {
-	service identity.Service
+// IdentityService defines identity domain operations required by HTTP handlers.
+type IdentityService interface {
+	Create(ctx context.Context, input identity.CreateInput) (*identity.Identity, error)
+	GetByID(ctx context.Context, id string) (*identity.Identity, error)
 }
 
-func NewIdentityHandler(service identity.Service) *IdentityHandler {
+// IdentityHandler handles identity-related HTTP requests.
+type IdentityHandler struct {
+	service IdentityService
+}
+
+// NewIdentityHandler constructs a concrete IdentityHandler instance.
+func NewIdentityHandler(service IdentityService) *IdentityHandler {
 	return &IdentityHandler{service: service}
 }
 
 func (h *IdentityHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input identity.CreateInput
-	if err := httputil.DecodeJSON(r, &input); err != nil {
+	if err := httputil.DecodeJSON(w, r, &input); err != nil {
 		httputil.WriteError(w, err)
 		return
 	}

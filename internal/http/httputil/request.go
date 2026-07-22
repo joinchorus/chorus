@@ -11,9 +11,9 @@ import (
 
 const maxBodyBytes = 1048576 // 1MB limit
 
-// DecodeJSON decodes request body JSON into target struct.
-func DecodeJSON(r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(nil, r.Body, maxBodyBytes)
+// DecodeJSON decodes request body JSON into target struct safely with a size limit.
+func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 

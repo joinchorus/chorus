@@ -8,21 +8,26 @@ import (
 	"chorus/internal/identity"
 )
 
-type identityRepository struct {
-	mu        sync.RWMutex
-	byID      map[string]*identity.Identity
-	byEmail   map[string]*identity.Identity
+// IdentityRepository is a thread-safe in-memory storage implementation for identities.
+type IdentityRepository struct {
+	mu      sync.RWMutex
+	byID    map[string]*identity.Identity
+	byEmail map[string]*identity.Identity
 }
 
-// NewIdentityRepository returns a thread-safe in-memory identity repository.
-func NewIdentityRepository() identity.Repository {
-	return &identityRepository{
+// NewIdentityRepository constructs a concrete in-memory identity repository.
+func NewIdentityRepository() *IdentityRepository {
+	return &IdentityRepository{
 		byID:    make(map[string]*identity.Identity),
 		byEmail: make(map[string]*identity.Identity),
 	}
 }
 
-func (r *identityRepository) Save(_ context.Context, id *identity.Identity) error {
+func (r *IdentityRepository) Save(ctx context.Context, id *identity.Identity) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -33,14 +38,17 @@ func (r *identityRepository) Save(_ context.Context, id *identity.Identity) erro
 		return domain.ErrAlreadyExists
 	}
 
-	// Copy to prevent external mutation
 	copied := *id
 	r.byID[id.ID] = &copied
 	r.byEmail[id.Email] = &copied
 	return nil
 }
 
-func (r *identityRepository) FindByID(_ context.Context, id string) (*identity.Identity, error) {
+func (r *IdentityRepository) FindByID(ctx context.Context, id string) (*identity.Identity, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -52,7 +60,11 @@ func (r *identityRepository) FindByID(_ context.Context, id string) (*identity.I
 	return &copied, nil
 }
 
-func (r *identityRepository) FindByEmail(_ context.Context, email string) (*identity.Identity, error) {
+func (r *IdentityRepository) FindByEmail(ctx context.Context, email string) (*identity.Identity, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

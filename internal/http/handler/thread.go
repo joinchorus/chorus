@@ -1,24 +1,36 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"chorus/internal/http/httputil"
 	"chorus/internal/thread"
 )
 
-// ThreadHandler handles thread & message HTTP requests.
-type ThreadHandler struct {
-	service thread.Service
+// ThreadService defines thread & message domain operations required by HTTP handlers.
+type ThreadService interface {
+	CreateThread(ctx context.Context, input thread.CreateThreadInput) (*thread.Thread, error)
+	GetThreadByID(ctx context.Context, id string) (*thread.Thread, error)
+	ListThreads(ctx context.Context) ([]*thread.Thread, error)
+
+	AddMessage(ctx context.Context, threadID string, input thread.CreateMessageInput) (*thread.Message, error)
+	ListMessages(ctx context.Context, threadID string) ([]*thread.Message, error)
 }
 
-func NewThreadHandler(service thread.Service) *ThreadHandler {
+// ThreadHandler handles thread & message HTTP requests.
+type ThreadHandler struct {
+	service ThreadService
+}
+
+// NewThreadHandler constructs a concrete ThreadHandler instance.
+func NewThreadHandler(service ThreadService) *ThreadHandler {
 	return &ThreadHandler{service: service}
 }
 
 func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 	var input thread.CreateThreadInput
-	if err := httputil.DecodeJSON(r, &input); err != nil {
+	if err := httputil.DecodeJSON(w, r, &input); err != nil {
 		httputil.WriteError(w, err)
 		return
 	}
@@ -56,7 +68,7 @@ func (h *ThreadHandler) ListThreads(w http.ResponseWriter, r *http.Request) {
 func (h *ThreadHandler) AddMessage(w http.ResponseWriter, r *http.Request) {
 	threadID := r.PathValue("id")
 	var input thread.CreateMessageInput
-	if err := httputil.DecodeJSON(r, &input); err != nil {
+	if err := httputil.DecodeJSON(w, r, &input); err != nil {
 		httputil.WriteError(w, err)
 		return
 	}

@@ -4,19 +4,24 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"chorus/internal/domain"
+	"chorus/internal/idgen"
 	"chorus/internal/identity"
 	"chorus/internal/repository/memory"
 )
 
 func TestIdentityService_CreateAndGet(t *testing.T) {
 	repo := memory.NewIdentityRepository()
-	gen := identity.NewRandomIDGenerator()
-	svc := identity.NewService(repo, gen)
+	gen := idgen.NewRandomIDGenerator()
+	fixedTime := time.Date(2026, 7, 22, 12, 0, 0, 0, time.UTC)
+	mockClock := func() time.Time { return fixedTime }
+
+	svc := identity.NewService(repo, gen, mockClock)
 	ctx := context.Background()
 
-	t.Run("successful creation and lookup", func(t *testing.T) {
+	t.Run("successful creation and lookup with clock", func(t *testing.T) {
 		input := identity.CreateInput{
 			Email: "alice@example.com",
 			Name:  "Alice",
@@ -30,6 +35,9 @@ func TestIdentityService_CreateAndGet(t *testing.T) {
 		}
 		if created.Email != "alice@example.com" {
 			t.Errorf("expected email alice@example.com, got %s", created.Email)
+		}
+		if !created.CreatedAt.Equal(fixedTime) {
+			t.Errorf("expected time %v, got %v", fixedTime, created.CreatedAt)
 		}
 
 		fetched, err := svc.GetByID(ctx, created.ID)

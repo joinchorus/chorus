@@ -7,28 +7,36 @@ import (
 	"time"
 
 	"chorus/internal/domain"
+	"chorus/internal/idgen"
 )
 
-// Service defines the business operations for identity management.
-type Service interface {
-	Create(ctx context.Context, input CreateInput) (*Identity, error)
-	GetByID(ctx context.Context, id string) (*Identity, error)
+// Repository defines storage operations required by the Identity service.
+type Repository interface {
+	Save(ctx context.Context, id *Identity) error
+	FindByID(ctx context.Context, id string) (*Identity, error)
+	FindByEmail(ctx context.Context, email string) (*Identity, error)
 }
 
-type service struct {
+// Service handles identity business logic and validation.
+type Service struct {
 	repo      Repository
-	generator IDGenerator
+	idGen     idgen.IDGenerator
+	nowClock  func() time.Time
 }
 
-// NewService constructs an identity Service with required dependencies.
-func NewService(repo Repository, generator IDGenerator) Service {
-	return &service{
-		repo:      repo,
-		generator: generator,
+// NewService constructs a concrete identity Service instance.
+func NewService(repo Repository, idGen idgen.IDGenerator, clock func() time.Time) *Service {
+	if clock == nil {
+		clock = time.Now
+	}
+	return &Service{
+		repo:     repo,
+		idGen:    idGen,
+		nowClock: clock,
 	}
 }
 
-func (s *service) Create(ctx context.Context, input CreateInput) (*Identity, error) {
+func (s *Service) Create(ctx context.Context, input CreateInput) (*Identity, error) {
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.Name = strings.TrimSpace(input.Name)
 
@@ -47,16 +55,16 @@ func (s *service) Create(ctx context.Context, input CreateInput) (*Identity, err
 		return nil, fmt.Errorf("%w: identity with email already exists", domain.ErrAlreadyExists)
 	}
 
-	idStr, err := s.generator.GenerateID()
+	idStr, err := s.idGen.GenerateID("usr_")
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
 
 	ident := &Identity{
 		ID:        idStr,
 		Email:     input.Email,
 		Name:      input.Name,
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: s.nowClock().UTC(),
 	}
 
 	if err := s.repo.Save(ctx, ident); err != nil {
@@ -66,7 +74,7 @@ func (s *service) Create(ctx context.Context, input CreateInput) (*Identity, err
 	return ident, nil
 }
 
-func (s *service) GetByID(ctx context.Context, id string) (*Identity, error) {
+func (s *Service) GetByID(ctx context.Context, id string) (*Identity, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, fmt.Errorf("%w: id is required", domain.ErrValidation)

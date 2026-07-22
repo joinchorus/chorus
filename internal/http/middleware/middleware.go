@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -29,7 +29,7 @@ func (w *statusResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-// Logger logs incoming HTTP request method, URI, status, and processing duration.
+// Logger logs incoming HTTP requests using log/slog.
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -37,16 +37,21 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(srw, r)
 
-		log.Printf("%s %s %d %s", r.Method, r.URL.Path, srw.statusCode, time.Since(start))
+		slog.Info("http request",
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.Int("status", srw.statusCode),
+			slog.Duration("duration", time.Since(start)),
+		)
 	})
 }
 
-// Recoverer handles panics gracefully by returning an internal server error response.
+// Recoverer handles panics gracefully using log/slog and returns an error response.
 func Recoverer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("[PANIC RECOVERY] %v", err)
+				slog.Error("panic recovered", slog.Any("error", err))
 				httputil.WriteError(w, http.ErrAbortHandler)
 			}
 		}()

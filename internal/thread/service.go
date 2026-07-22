@@ -2,35 +2,44 @@ package thread
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
 
 	"chorus/internal/domain"
+	"chorus/internal/idgen"
 )
 
-// Service defines business operations for thread and message management.
-type Service interface {
-	CreateThread(ctx context.Context, input CreateThreadInput) (*Thread, error)
-	GetThreadByID(ctx context.Context, id string) (*Thread, error)
+// Repository defines storage operations required by the Thread service.
+type Repository interface {
+	SaveThread(ctx context.Context, t *Thread) error
+	FindThreadByID(ctx context.Context, id string) (*Thread, error)
 	ListThreads(ctx context.Context) ([]*Thread, error)
 
-	AddMessage(ctx context.Context, threadID string, input CreateMessageInput) (*Message, error)
-	ListMessages(ctx context.Context, threadID string) ([]*Message, error)
+	SaveMessage(ctx context.Context, m *Message) error
+	ListMessagesByThreadID(ctx context.Context, threadID string) ([]*Message, error)
 }
 
-type service struct {
-	repo Repository
+// Service handles thread and message business logic and validation.
+type Service struct {
+	repo     Repository
+	idGen    idgen.IDGenerator
+	nowClock func() time.Time
 }
 
-// NewService constructs a thread Service with repository dependency.
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+// NewService constructs a concrete thread Service instance.
+func NewService(repo Repository, idGen idgen.IDGenerator, clock func() time.Time) *Service {
+	if clock == nil {
+		clock = time.Now
+	}
+	return &Service{
+		repo:     repo,
+		idGen:    idGen,
+		nowClock: clock,
+	}
 }
 
-func (s *service) CreateThread(ctx context.Context, input CreateThreadInput) (*Thread, error) {
+func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput) (*Thread, error) {
 	input.Title = strings.TrimSpace(input.Title)
 	input.AuthorID = strings.TrimSpace(input.AuthorID)
 
@@ -41,12 +50,12 @@ func (s *service) CreateThread(ctx context.Context, input CreateThreadInput) (*T
 		return nil, fmt.Errorf("%w: author_id is required", domain.ErrValidation)
 	}
 
-	id, err := generatePrefixedID("thd_")
+	id, err := s.idGen.GenerateID("thd_")
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
 
-	now := time.Now().UTC()
+	now := s.nowClock().UTC()
 	t := &Thread{
 		ID:        id,
 		Title:     input.Title,
@@ -62,7 +71,7 @@ func (s *service) CreateThread(ctx context.Context, input CreateThreadInput) (*T
 	return t, nil
 }
 
-func (s *service) GetThreadByID(ctx context.Context, id string) (*Thread, error) {
+func (s *Service) GetThreadByID(ctx context.Context, id string) (*Thread, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, fmt.Errorf("%w: thread id is required", domain.ErrValidation)
@@ -70,11 +79,11 @@ func (s *service) GetThreadByID(ctx context.Context, id string) (*Thread, error)
 	return s.repo.FindThreadByID(ctx, id)
 }
 
-func (s *service) ListThreads(ctx context.Context) ([]*Thread, error) {
+func (s *Service) ListThreads(ctx context.Context) ([]*Thread, error) {
 	return s.repo.ListThreads(ctx)
 }
 
-func (s *service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput) (*Message, error) {
+func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput) (*Message, error) {
 	threadID = strings.TrimSpace(threadID)
 	input.AuthorID = strings.TrimSpace(input.AuthorID)
 	input.Content = strings.TrimSpace(input.Content)
@@ -89,15 +98,9 @@ func (s *service) AddMessage(ctx context.Context, threadID string, input CreateM
 		return nil, fmt.Errorf("%w: message content cannot be empty", domain.ErrValidation)
 	}
 
-	// Verify thread exists
-	_, err := s.repo.FindThreadByID(ctx, threadID)
+	msgID, err := s.idGen.GenerateID("msg_")
 	if err != nil {
-		return nil, err
-	}
-
-	msgID, err := generatePrefixedID("msg_")
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", domain.ErrInternal, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
 
 	msg := &Message{
@@ -105,7 +108,7 @@ func (s *service) AddMessage(ctx context.Context, threadID string, input CreateM
 		ThreadID:  threadID,
 		AuthorID:  input.AuthorID,
 		Content:   input.Content,
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: s.nowClock().UTC(),
 	}
 
 	if err := s.repo.SaveMessage(ctx, msg); err != nil {
@@ -115,24 +118,10 @@ func (s *service) AddMessage(ctx context.Context, threadID string, input CreateM
 	return msg, nil
 }
 
-func (s *service) ListMessages(ctx context.Context, threadID string) ([]*Message, error) {
+func (s *Service) ListMessages(ctx context.Context, threadID string) ([]*Message, error) {
 	threadID = strings.TrimSpace(threadID)
 	if threadID == "" {
 		return nil, fmt.Errorf("%w: thread_id is required", domain.ErrValidation)
 	}
-
-	// Verify thread exists first
-	if _, err := s.repo.FindThreadByID(ctx, threadID); err != nil {
-		return nil, err
-	}
-
 	return s.repo.ListMessagesByThreadID(ctx, threadID)
-}
-
-func generatePrefixedID(prefix string) (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return prefix + hex.EncodeToString(b), nil
 }

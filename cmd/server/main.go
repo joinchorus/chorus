@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,24 +14,29 @@ import (
 	"chorus/internal/config"
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
+	"chorus/internal/idgen"
 	"chorus/internal/identity"
 	"chorus/internal/repository/memory"
 	"chorus/internal/thread"
 )
 
 func main() {
+	// Initialize structured logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	cfg := config.Load()
 
-	// 1. Repositories (In-Memory)
+	// 1. Repositories (In-Memory concrete implementations)
 	identityRepo := memory.NewIdentityRepository()
 	threadRepo := memory.NewThreadRepository()
 
-	// 2. Auxiliary identity generator
-	idGen := identity.NewRandomIDGenerator()
+	// 2. Auxiliary ID generator
+	idGen := idgen.NewRandomIDGenerator()
 
-	// 3. Services
-	identityService := identity.NewService(identityRepo, idGen)
-	threadService := thread.NewService(threadRepo)
+	// 3. Services (Concrete instances with injected dependencies)
+	identityService := identity.NewService(identityRepo, idGen, time.Now)
+	threadService := thread.NewService(threadRepo, idGen, time.Now)
 
 	// 4. HTTP Handlers
 	healthH := handler.NewHealthHandler()
@@ -54,14 +59,14 @@ func main() {
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 
-	// 7. Start Server asynchronously
+	// 7. Graceful Shutdown listener
 	shutdownErr := make(chan error, 1)
 	go func() {
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		s := <-quit
+		sig := <-quit
 
-		log.Printf("Received signal %s. Shutting down server gracefully...", s)
+		slog.Info("shutting down server gracefully...", slog.String("signal", sig.String()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -69,15 +74,16 @@ func main() {
 		shutdownErr <- srv.Shutdown(ctx)
 	}()
 
-	log.Printf("Chorus server listening on port %s (%s mode)", cfg.Port, cfg.Environment)
+	slog.Info("server starting", slog.String("port", cfg.Port), slog.String("env", cfg.Environment))
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		slog.Error("server forced to shutdown", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if err := <-shutdownErr; err != nil {
-		log.Printf("Graceful shutdown failed: %v", err)
+		slog.Error("graceful shutdown failed", slog.Any("error", err))
 	} else {
-		log.Println("Server stopped cleanly.")
+		slog.Info("server stopped cleanly")
 	}
 }

@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
+	"chorus/internal/idgen"
 	"chorus/internal/identity"
 	"chorus/internal/repository/memory"
 	"chorus/internal/thread"
@@ -17,10 +19,10 @@ import (
 func setupTestServer() http.Handler {
 	identityRepo := memory.NewIdentityRepository()
 	threadRepo := memory.NewThreadRepository()
-	idGen := identity.NewRandomIDGenerator()
+	idGen := idgen.NewRandomIDGenerator()
 
-	identityService := identity.NewService(identityRepo, idGen)
-	threadService := thread.NewService(threadRepo)
+	identityService := identity.NewService(identityRepo, idGen, time.Now)
+	threadService := thread.NewService(threadRepo, idGen, time.Now)
 
 	return chttp.NewRouter(chttp.RouterConfig{
 		Health:   handler.NewHealthHandler(),
