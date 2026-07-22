@@ -1,0 +1,36 @@
+# Binaries and compiled outputs
+*.exe
+*.exe-e
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/server
+
+# Go workspace and vendor files
+go.work
+go.work.sum
+/vendor/
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+
+# Local agent skills and configuration
+.agents/
