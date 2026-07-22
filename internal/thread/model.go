@@ -2,32 +2,50 @@ package thread
 
 import "time"
 
-// Thread represents a discussion or messaging thread.
+// Thread represents a discussion thread.
 type Thread struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
 	AuthorID  string    `json:"author_id"`
+	Country   *string   `json:"country"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Message represents an individual message posted within a thread.
+// Message represents a post or reply within a thread.
 type Message struct {
 	ID        string    `json:"id"`
 	ThreadID  string    `json:"thread_id"`
 	AuthorID  string    `json:"author_id"`
+	Country   *string   `json:"country"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// CreateThreadInput holds data required to initialize a thread.
-type CreateThreadInput struct {
-	Title    string `json:"title"`
-	AuthorID string `json:"author_id"`
+// ThreadDetail contains thread header metadata and all posted messages.
+type ThreadDetail struct {
+	Thread   *Thread    `json:"thread"`
+	Messages []*Message `json:"messages"`
 }
 
-// CreateMessageInput holds data required to append a message to a thread.
+// CreateThreadInput holds parameters for initializing a new thread.
+type CreateThreadInput struct {
+	Title       string `json:"title"`
+	Body        string `json:"body"`
+	ShowCountry bool   `json:"show_country"`
+}
+
+// CreateMessageInput holds parameters for appending a reply to a thread.
 type CreateMessageInput struct {
-	AuthorID string `json:"author_id"`
-	Content  string `json:"content"`
+	Body        string `json:"body"`
+	Content     string `json:"content"` // Alias fallback for legacy content key
+	ShowCountry bool   `json:"show_country"`
+}
+
+// GetBody returns Body or Content field.
+func (i *CreateMessageInput) GetBody() string {
+	if i.Body != "" {
+		return i.Body
+	}
+	return i.Content
 }

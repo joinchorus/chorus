@@ -34,3 +34,6 @@ Thumbs.db
 
 # Local agent skills and configuration
 .agents/
+
+# Local data storage repository
+data/

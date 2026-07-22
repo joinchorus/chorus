@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port         string
 	Environment  string
+	DataDir      string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
@@ -18,10 +19,12 @@ type Config struct {
 func Load() *Config {
 	port := getEnv("PORT", "8080")
 	env := getEnv("ENV", "development")
+	dataDir := getEnv("DATA_DIR", "./data/repository")
 
 	return &Config{
 		Port:         port,
 		Environment:  env,
+		DataDir:      dataDir,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

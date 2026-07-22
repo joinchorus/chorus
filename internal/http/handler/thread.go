@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"chorus/internal/http/httputil"
 	"chorus/internal/thread"
@@ -10,11 +11,12 @@ import (
 
 // ThreadService defines thread & message domain operations required by HTTP handlers.
 type ThreadService interface {
-	CreateThread(ctx context.Context, input thread.CreateThreadInput) (*thread.Thread, error)
+	CreateThread(ctx context.Context, input thread.CreateThreadInput, clientIP string) (*thread.Thread, error)
 	GetThreadByID(ctx context.Context, id string) (*thread.Thread, error)
+	GetThreadDetail(ctx context.Context, id string) (*thread.ThreadDetail, error)
 	ListThreads(ctx context.Context) ([]*thread.Thread, error)
 
-	AddMessage(ctx context.Context, threadID string, input thread.CreateMessageInput) (*thread.Message, error)
+	AddMessage(ctx context.Context, threadID string, input thread.CreateMessageInput, clientIP string) (*thread.Message, error)
 	ListMessages(ctx context.Context, threadID string) ([]*thread.Message, error)
 }
 
@@ -35,7 +37,8 @@ func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := h.service.CreateThread(r.Context(), input)
+	clientIP := httputil.ExtractClientIP(r)
+	t, err := h.service.CreateThread(r.Context(), input, clientIP)
 	if err != nil {
 		httputil.WriteError(w, err)
 		return
@@ -46,13 +49,13 @@ func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 func (h *ThreadHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := h.service.GetThreadByID(r.Context(), id)
+	detail, err := h.service.GetThreadDetail(r.Context(), id)
 	if err != nil {
 		httputil.WriteError(w, err)
 		return
 	}
 
-	httputil.WriteJSON(w, http.StatusOK, t)
+	httputil.WriteJSON(w, http.StatusOK, detail)
 }
 
 func (h *ThreadHandler) ListThreads(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +63,27 @@ func (h *ThreadHandler) ListThreads(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.WriteError(w, err)
 		return
+	}
+
+	// Parse optional pagination query params
+	offset := parseQueryInt(r, "offset", 0)
+	limit := parseQueryInt(r, "limit", 50)
+
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+
+	if offset >= len(threads) {
+		threads = []*thread.Thread{}
+	} else {
+		end := offset + limit
+		if end > len(threads) {
+			end = len(threads)
+		}
+		threads = threads[offset:end]
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"threads": threads})
@@ -73,7 +97,8 @@ func (h *ThreadHandler) AddMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, err := h.service.AddMessage(r.Context(), threadID, input)
+	clientIP := httputil.ExtractClientIP(r)
+	msg, err := h.service.AddMessage(r.Context(), threadID, input, clientIP)
 	if err != nil {
 		httputil.WriteError(w, err)
 		return
@@ -90,5 +115,37 @@ func (h *ThreadHandler) ListMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	offset := parseQueryInt(r, "offset", 0)
+	limit := parseQueryInt(r, "limit", 100)
+
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+
+	if offset >= len(msgs) {
+		msgs = []*thread.Message{}
+	} else {
+		end := offset + limit
+		if end > len(msgs) {
+			end = len(msgs)
+		}
+		msgs = msgs[offset:end]
+	}
+
 	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"messages": msgs})
+}
+
+func parseQueryInt(r *http.Request, key string, defaultValue int) int {
+	valStr := r.URL.Query().Get(key)
+	if valStr == "" {
+		return defaultValue
+	}
+	val, err := strconv.Atoi(valStr)
+	if err != nil {
+		return defaultValue
+	}
+	return val
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"chorus/internal/domain"
+	"chorus/internal/http/httputil"
 	"chorus/internal/idgen"
 )
 
@@ -39,27 +40,42 @@ func NewService(repo Repository, idGen idgen.IDGenerator, clock func() time.Time
 	}
 }
 
-func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput) (*Thread, error) {
-	input.Title = strings.TrimSpace(input.Title)
-	input.AuthorID = strings.TrimSpace(input.AuthorID)
+func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput, clientIP string) (*Thread, error) {
+	title := strings.TrimSpace(input.Title)
+	body := strings.TrimSpace(input.Body)
 
-	if input.Title == "" {
-		return nil, fmt.Errorf("%w: thread title is required", domain.ErrValidation)
+	if err := domain.ValidateTitle(title); err != nil {
+		return nil, err
 	}
-	if input.AuthorID == "" {
-		return nil, fmt.Errorf("%w: author_id is required", domain.ErrValidation)
+	if err := domain.ValidateBody(body, false); err != nil {
+		return nil, err
 	}
 
-	id, err := s.idGen.GenerateID("thd_")
+	authorID, err := s.idGen.GenerateID("usr_")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+	}
+
+	var countryPtr *string
+	if input.ShowCountry {
+		countryStr := httputil.ResolveCountryFromIP(clientIP)
+		countryPtr = &countryStr
+	}
+	if err := domain.ValidateCountry(countryPtr); err != nil {
+		return nil, err
+	}
+
+	threadID, err := s.idGen.GenerateID("thd_")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
 
 	now := s.nowClock().UTC()
 	t := &Thread{
-		ID:        id,
-		Title:     input.Title,
-		AuthorID:  input.AuthorID,
+		ID:        threadID,
+		Title:     title,
+		AuthorID:  authorID,
+		Country:   countryPtr,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -68,34 +84,83 @@ func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput) (*T
 		return nil, err
 	}
 
+	if body != "" {
+		msgID, err := s.idGen.GenerateID("msg_")
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+		}
+
+		msg := &Message{
+			ID:        msgID,
+			ThreadID:  threadID,
+			AuthorID:  authorID,
+			Country:   countryPtr,
+			Content:   body,
+			CreatedAt: now,
+		}
+
+		if err := s.repo.SaveMessage(ctx, msg); err != nil {
+			return nil, err
+		}
+	}
+
 	return t, nil
 }
 
 func (s *Service) GetThreadByID(ctx context.Context, id string) (*Thread, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("%w: thread id is required", domain.ErrValidation)
+	if err := domain.ValidateID(id, "thd_"); err != nil {
+		return nil, err
 	}
 	return s.repo.FindThreadByID(ctx, id)
+}
+
+func (s *Service) GetThreadDetail(ctx context.Context, id string) (*ThreadDetail, error) {
+	t, err := s.GetThreadByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	msgs, err := s.repo.ListMessagesByThreadID(ctx, t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ThreadDetail{
+		Thread:   t,
+		Messages: msgs,
+	}, nil
 }
 
 func (s *Service) ListThreads(ctx context.Context) ([]*Thread, error) {
 	return s.repo.ListThreads(ctx)
 }
 
-func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput) (*Message, error) {
-	threadID = strings.TrimSpace(threadID)
-	input.AuthorID = strings.TrimSpace(input.AuthorID)
-	input.Content = strings.TrimSpace(input.Content)
+func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput, clientIP string) (*Message, error) {
+	if err := domain.ValidateID(threadID, "thd_"); err != nil {
+		return nil, err
+	}
 
-	if threadID == "" {
-		return nil, fmt.Errorf("%w: thread_id is required", domain.ErrValidation)
+	body := strings.TrimSpace(input.GetBody())
+	if err := domain.ValidateBody(body, true); err != nil {
+		return nil, err
 	}
-	if input.AuthorID == "" {
-		return nil, fmt.Errorf("%w: author_id is required", domain.ErrValidation)
+
+	if _, err := s.repo.FindThreadByID(ctx, threadID); err != nil {
+		return nil, err
 	}
-	if input.Content == "" {
-		return nil, fmt.Errorf("%w: message content cannot be empty", domain.ErrValidation)
+
+	authorID, err := s.idGen.GenerateID("usr_")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", domain.ErrInternal, err)
+	}
+
+	var countryPtr *string
+	if input.ShowCountry {
+		countryStr := httputil.ResolveCountryFromIP(clientIP)
+		countryPtr = &countryStr
+	}
+	if err := domain.ValidateCountry(countryPtr); err != nil {
+		return nil, err
 	}
 
 	msgID, err := s.idGen.GenerateID("msg_")
@@ -106,8 +171,9 @@ func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateM
 	msg := &Message{
 		ID:        msgID,
 		ThreadID:  threadID,
-		AuthorID:  input.AuthorID,
-		Content:   input.Content,
+		AuthorID:  authorID,
+		Country:   countryPtr,
+		Content:   body,
 		CreatedAt: s.nowClock().UTC(),
 	}
 
@@ -119,9 +185,8 @@ func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateM
 }
 
 func (s *Service) ListMessages(ctx context.Context, threadID string) ([]*Message, error) {
-	threadID = strings.TrimSpace(threadID)
-	if threadID == "" {
-		return nil, fmt.Errorf("%w: thread_id is required", domain.ErrValidation)
+	if err := domain.ValidateID(threadID, "thd_"); err != nil {
+		return nil, err
 	}
 	return s.repo.ListMessagesByThreadID(ctx, threadID)
 }

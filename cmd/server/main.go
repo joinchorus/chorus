@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"chorus/internal/config"
+	"chorus/internal/gitstore"
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
 	"chorus/internal/idgen"
 	"chorus/internal/identity"
-	"chorus/internal/repository/memory"
 	"chorus/internal/thread"
 )
 
@@ -27,9 +27,19 @@ func main() {
 
 	cfg := config.Load()
 
-	// 1. Repositories (In-Memory concrete implementations)
-	identityRepo := memory.NewIdentityRepository()
-	threadRepo := memory.NewThreadRepository()
+	// 1. Repositories (Git-Backed Persistence)
+	gitStore := gitstore.NewGitStore(cfg.DataDir)
+	identityRepo, err := gitstore.NewIdentityRepository(gitStore)
+	if err != nil {
+		slog.Error("failed initializing git identity repository", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	threadRepo, err := gitstore.NewThreadRepository(gitStore)
+	if err != nil {
+		slog.Error("failed initializing git thread repository", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// 2. Auxiliary ID generator
 	idGen := idgen.NewRandomIDGenerator()
@@ -74,8 +84,8 @@ func main() {
 		shutdownErr <- srv.Shutdown(ctx)
 	}()
 
-	slog.Info("server starting", slog.String("port", cfg.Port), slog.String("env", cfg.Environment))
-	err := srv.ListenAndServe()
+	slog.Info("server starting", slog.String("port", cfg.Port), slog.String("env", cfg.Environment), slog.String("data_dir", cfg.DataDir))
+	err = srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server forced to shutdown", slog.Any("error", err))
 		os.Exit(1)

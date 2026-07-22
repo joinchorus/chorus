@@ -43,26 +43,11 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 		t.Fatalf("expected 200 OK for healthz, got %d", rec.Code)
 	}
 
-	// 2. Create Identity
-	identBody := []byte(`{"email":"bob@example.com","name":"Bob"}`)
-	req = httptest.NewRequest("POST", "/api/v1/identities", bytes.NewBuffer(identBody))
-	req.Header.Set("Content-Type", "application/json")
-	rec = httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201 Created for identity, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var createdIdent identity.Identity
-	if err := json.NewDecoder(rec.Body).Decode(&createdIdent); err != nil {
-		t.Fatalf("failed decoding identity response: %v", err)
-	}
-
-	// 3. Create Thread
-	threadBody, _ := json.Marshal(map[string]string{
-		"title":     "General Chat",
-		"author_id": createdIdent.ID,
+	// 2. Create Thread directly with title & body & show_country
+	threadBody, _ := json.Marshal(map[string]any{
+		"title":        "General Chat",
+		"body":         "First post content",
+		"show_country": true,
 	})
 	req = httptest.NewRequest("POST", "/api/v1/threads", bytes.NewBuffer(threadBody))
 	req.Header.Set("Content-Type", "application/json")
@@ -78,10 +63,14 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 		t.Fatalf("failed decoding thread response: %v", err)
 	}
 
-	// 4. Add Message to Thread
-	msgBody, _ := json.Marshal(map[string]string{
-		"author_id": createdIdent.ID,
-		"content":   "Hello world!",
+	if createdThread.AuthorID == "" {
+		t.Errorf("expected backend-generated author_id, got empty")
+	}
+
+	// 3. Add Message to Thread
+	msgBody, _ := json.Marshal(map[string]any{
+		"body":         "Hello world reply!",
+		"show_country": true,
 	})
 	req = httptest.NewRequest("POST", "/api/v1/threads/"+createdThread.ID+"/messages", bytes.NewBuffer(msgBody))
 	req.Header.Set("Content-Type", "application/json")
@@ -92,12 +81,21 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 		t.Fatalf("expected 201 Created for message, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 5. Fetch Messages for Thread
-	req = httptest.NewRequest("GET", "/api/v1/threads/"+createdThread.ID+"/messages", nil)
+	// 4. Fetch Thread Detail
+	req = httptest.NewRequest("GET", "/api/v1/threads/"+createdThread.ID, nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK listing messages, got %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("expected 200 OK getting thread detail, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var detail thread.ThreadDetail
+	if err := json.NewDecoder(rec.Body).Decode(&detail); err != nil {
+		t.Fatalf("failed decoding thread detail response: %v", err)
+	}
+
+	if len(detail.Messages) != 2 { // 1 initial message + 1 reply
+		t.Fatalf("expected 2 messages in detail, got %d", len(detail.Messages))
 	}
 }

@@ -20,7 +20,11 @@
 > [!NOTE]  
 > **Core Concept**: In Chorus, participants do not create account profiles. Every discussion thread automatically generates a temporary, cryptographically isolated identity that exists *only* within that thread.
 
+> [!WARNING]
+> **Project Status**: `v0.1.0-alpha` (Experimental). Chorus is under active development. The HTTP API is unstable and the underlying Git repository storage schema may evolve before `v1.0.0`.
+
 <br />
+
 
 ## Why Chorus?
 
