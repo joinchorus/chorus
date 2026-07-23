@@ -96,10 +96,25 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			return relPath
 		}
 
+		serveFile := func(targetPath string) {
+			f, err := os.Open(targetPath)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			defer f.Close()
+			info, err := f.Stat()
+			if err != nil || info.IsDir() {
+				http.NotFound(w, r)
+				return
+			}
+			http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+		}
+
 		if host == "joinchorus.app" || host == "www.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/landing") {
 			landingPath := findFile(filepath.Join("public", "landing", "index.html"))
 			if _, err := os.Stat(landingPath); err == nil {
-				http.ServeFile(w, r, landingPath)
+				serveFile(landingPath)
 				return
 			}
 		}
@@ -107,7 +122,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		if host == "docs.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/docs") {
 			docsPath := findFile(filepath.Join("public", "docs", "index.html"))
 			if _, err := os.Stat(docsPath); err == nil {
-				http.ServeFile(w, r, docsPath)
+				serveFile(docsPath)
 				return
 			}
 		}
@@ -115,13 +130,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		// Main Web App (chat.joinchorus.app or localhost)
 		staticPath := findFile(filepath.Join(cfg.StaticDir, filepath.Clean(r.URL.Path)))
 		if info, err := os.Stat(staticPath); err == nil && !info.IsDir() {
-			http.ServeFile(w, r, staticPath)
+			serveFile(staticPath)
 			return
 		}
 
 		// SPA Fallback: serve index.html for unknown routes
 		indexPath := findFile(filepath.Join(cfg.StaticDir, "index.html"))
-		http.ServeFile(w, r, indexPath)
+		serveFile(indexPath)
 	})
 
 	// Wrap in global CORS & Logger Middleware
