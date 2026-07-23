@@ -98,6 +98,13 @@ cd web && npm run build
 
 ---
 
+## 🤝 Credits & Origin
+
+- 💡 **Concept & Product Idea:** **Mehmet Emin Dereci** ([@MEmin00](https://github.com/MEmin00))
+- 🏗️ **Architecture, Lead Development & First Release:** **Barış Salih Babacan** ([@barissalihbabacan](https://github.com/barissalihbabacan))
+
+---
+
 ## 📄 License & Community
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.  
