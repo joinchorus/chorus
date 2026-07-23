@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  chorus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chorus-server
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=production
+      - DATA_DIR=/app/data/repository
+    volumes:
+      - chorus-data:/app/data/repository
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  chorus-data:
+    driver: local
