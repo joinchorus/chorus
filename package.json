@@ -1,12 +1,14 @@
 {
-  "name": "chorus-app",
+  "name": "chorus-app-hosting",
   "version": "0.1.0",
   "private": true,
+  "main": "server.js",
   "scripts": {
     "build": "cd web && npm ci && npm run build",
-    "start": "cd web && npm run preview"
+    "start": "node server.js"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "web": "file:./web"
   }
 }
