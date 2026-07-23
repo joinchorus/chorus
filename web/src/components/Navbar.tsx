@@ -5,6 +5,7 @@ export const Navbar: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('chorus_theme') as 'light' | 'dark') || 'light';
   });
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -31,11 +32,29 @@ export const Navbar: React.FC = () => {
           </span>
         </div>
 
-        <nav className="site-nav-links" aria-label="Main Navigation" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="mobile-nav-toggle"
+          aria-label="Toggle mobile menu"
+          aria-expanded={menuOpen}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <nav
+          className={`site-nav-links ${menuOpen ? 'active' : ''}`}
+          aria-label="Main Navigation"
+          style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}
+        >
           <a
             href="https://joinchorus.app"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => setMenuOpen(false)}
             style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
           >
             Website
@@ -45,6 +64,7 @@ export const Navbar: React.FC = () => {
             href="https://docs.joinchorus.app"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => setMenuOpen(false)}
             style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
           >
             Documentation
@@ -54,6 +74,7 @@ export const Navbar: React.FC = () => {
             href="https://github.com/joinchorus/chorus"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => setMenuOpen(false)}
             style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
           >
             GitHub

@@ -200,6 +200,43 @@ a:hover {
   gap: 1rem;
 }
 
+.mobile-nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav-toggle {
+    display: inline-flex;
+  }
+
+  .site-nav-links {
+    display: none !important;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-default);
+    padding: 1.25rem 1.5rem;
+    gap: 1rem !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    align-items: flex-start !important;
+  }
+
+  .site-nav-links.active {
+    display: flex !important;
+  }
+}
+
 .theme-toggle-btn {
   background: transparent;
   border: 1px solid var(--border-default);
