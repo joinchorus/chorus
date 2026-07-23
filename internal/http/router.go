@@ -99,12 +99,24 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		serveFile := func(targetPath string) {
 			f, err := os.Open(targetPath)
 			if err != nil {
+				if strings.HasSuffix(targetPath, "index.html") {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("<!DOCTYPE html><html><head><title>Chorus</title></head><body><div id=\"root\"></div></body></html>"))
+					return
+				}
 				http.NotFound(w, r)
 				return
 			}
 			defer f.Close()
 			info, err := f.Stat()
 			if err != nil || info.IsDir() {
+				if strings.HasSuffix(targetPath, "index.html") {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("<!DOCTYPE html><html><head><title>Chorus</title></head><body><div id=\"root\"></div></body></html>"))
+					return
+				}
 				http.NotFound(w, r)
 				return
 			}
