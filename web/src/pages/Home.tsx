@@ -1,15 +1,30 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchThreads } from '../lib/api';
 import { ThreadCard } from '../components/ThreadCard';
 import { ThreadSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/EmptyState';
-import { OFFICIAL_TOPICS } from '../lib/topics';
+
+const FILTER_TOPICS = [
+  { id: 'all', name: 'All' },
+  { id: 'technology', name: 'Technology' },
+  { id: 'programming', name: 'Programming' },
+  { id: 'ai', name: 'AI' },
+  { id: 'science', name: 'Science' },
+  { id: 'design', name: 'Design' },
+  { id: 'philosophy', name: 'Philosophy' },
+  { id: 'history', name: 'History' },
+  { id: 'politics', name: 'Politics' },
+  { id: 'books', name: 'Books' },
+  { id: 'movies', name: 'Movies' },
+  { id: 'music', name: 'Music' },
+];
 
 export const Home: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
 
   const { data: threads, isLoading, error } = useQuery({
     queryKey: ['threads'],
@@ -19,11 +34,14 @@ export const Home: React.FC = () => {
   const filteredThreads = useMemo(() => {
     if (!threads) return [];
     return threads.filter((th) => {
-      const matchTopic = selectedTopic === 'all' || (th.topic || 'technology') === selectedTopic;
+      const matchTopic =
+        selectedTopic === 'all' ||
+        (th.topic || 'technology').toLowerCase() === selectedTopic.toLowerCase();
       const q = searchQuery.toLowerCase().trim();
-      const matchQuery = !q || 
-        th.title.toLowerCase().includes(q) || 
-        (th.topic || '').toLowerCase().includes(q) || 
+      const matchQuery =
+        !q ||
+        th.title.toLowerCase().includes(q) ||
+        (th.topic || '').toLowerCase().includes(q) ||
         (th.body || '').toLowerCase().includes(q) ||
         (th.conversation_name || '').toLowerCase().includes(q);
       return matchTopic && matchQuery;
@@ -31,154 +49,59 @@ export const Home: React.FC = () => {
   }, [threads, selectedTopic, searchQuery]);
 
   return (
-    <div style={{ width: '100%', padding: '1.5rem 0' }}>
-      
-      {/* 1. Header & Primary Action: Start Conversation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--text-primary)', margin: 0, lineHeight: 1.15 }}>
-            Recent Conversations
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', margin: '0.35rem 0 0', lineHeight: 1.4 }}>
-            Thoughtful discourse where identity belongs exclusively to the conversation.
-          </p>
-        </div>
+    <div className="home-editorial-wrapper">
+      {/* Hero Section */}
+      <section className="editorial-hero">
+        <h1 className="editorial-hero-title">
+          Identity belongs to the conversation.
+        </h1>
+        <p className="editorial-hero-subtitle">
+          A quiet, anonymous space where ideas matter more than profiles, algorithms, or reputation.
+        </p>
+      </section>
 
-        <Link
-          to="/new"
-          style={{
-            background: 'var(--btn-primary-bg)',
-            color: 'var(--btn-primary-text)',
-            fontSize: '0.9375rem',
-            fontWeight: 700,
-            padding: '0.65rem 1.35rem',
-            borderRadius: '8px',
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            transition: 'opacity 0.15s ease',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          + Start Conversation
-        </Link>
-      </div>
+      {/* Topic Filters */}
+      <nav className="topic-filters" aria-label="Topic filters">
+        {FILTER_TOPICS.map((topic) => {
+          const isSelected = selectedTopic === topic.id;
+          return (
+            <button
+              key={topic.id}
+              onClick={() => setSelectedTopic(topic.id)}
+              className={`topic-pill ${isSelected ? 'active' : ''}`}
+            >
+              {topic.name}
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* 2. Utility Search & Topic Filters */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2.5rem' }}>
-        {/* Search Input Utility */}
-        <div style={{ position: 'relative', width: '100%' }}>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: '8px',
-              padding: '0.75rem 1.25rem 0.75rem 2.6rem',
-              color: 'var(--text-primary)',
-              fontSize: '0.9375rem',
-              outline: 'none',
-              transition: 'border-color 0.15s ease',
-            }}
+      {/* Conversation Feed */}
+      <section className="conversation-feed">
+        {isLoading ? (
+          <div className="skeleton-feed">
+            <ThreadSkeleton />
+            <ThreadSkeleton />
+            <ThreadSkeleton />
+          </div>
+        ) : error ? (
+          <div className="error-feed">
+            {error instanceof Error ? error.message : 'Failed to load conversations.'}
+          </div>
+        ) : filteredThreads.length === 0 ? (
+          <EmptyState
+            title="No conversations yet."
+            description="Start the first thoughtful discussion."
+            actionLabel="Start Conversation"
           />
-          <svg
-            style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </div>
-
-        {/* Lightweight Horizontal Topic Filter Chips */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.4rem',
-            overflowX: 'auto',
-            paddingBottom: '0.25rem',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          <button
-            onClick={() => setSelectedTopic('all')}
-            style={{
-              padding: '0.35rem 0.85rem',
-              borderRadius: '20px',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              border: '1px solid var(--border-default)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              background: selectedTopic === 'all' ? 'var(--btn-primary-bg)' : 'var(--bg-surface)',
-              color: selectedTopic === 'all' ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            All
-          </button>
-
-          {OFFICIAL_TOPICS.map((t) => {
-            const isSelected = selectedTopic === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTopic(t.id)}
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '20px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  border: '1px solid var(--border-default)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  background: isSelected ? 'var(--btn-primary-bg)' : 'var(--bg-surface)',
-                  color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Primary Conversation Cards Feed */}
-      {isLoading ? (
-        <div>
-          <ThreadSkeleton />
-          <ThreadSkeleton />
-          <ThreadSkeleton />
-        </div>
-      ) : error ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--accent-red)', fontSize: '0.875rem' }}>
-          {error instanceof Error ? error.message : 'Failed to load conversations.'}
-        </div>
-      ) : filteredThreads.length === 0 ? (
-        <EmptyState
-          title="No conversations found."
-          description="Start a new conversation or choose another topic filter."
-          actionLabel="Start a Conversation"
-          onAction={() => window.location.href = '/new'}
-        />
-      ) : (
-        <div>
-          {filteredThreads.map((thread) => (
-            <ThreadCard key={thread.id} thread={thread} />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="feed-cards-list">
+            {filteredThreads.map((thread) => (
+              <ThreadCard key={thread.id} thread={thread} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

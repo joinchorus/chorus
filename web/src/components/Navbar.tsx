@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('chorus_theme') as 'light' | 'dark') || 'light';
+    return (localStorage.getItem('chorus_theme') as 'light' | 'dark') || 'dark';
   });
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -20,80 +21,64 @@ export const Navbar: React.FC = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val) {
+      setSearchParams({ q: val }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
+
   return (
-    <header className="site-header">
-      <div className="container site-nav-container">
-        <div className="site-logo-group">
-          <Link to="/" className="site-logo">
+    <header className="editorial-navbar">
+      <div className="container navbar-inner">
+        {/* Left: Logo & Tagline */}
+        <div className="navbar-brand-group">
+          <Link to="/" className="navbar-logo">
             Chorus
           </Link>
-          <span className="site-tagline">
-            Anonymous discussions.
-          </span>
+          <span className="navbar-tagline">Anonymous discussions.</span>
         </div>
 
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="mobile-nav-toggle"
-          aria-label="Toggle mobile menu"
-          aria-expanded={menuOpen}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
+        {/* Center: Search */}
+        <div className="navbar-search-wrapper">
+          <svg className="navbar-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-        </button>
+          <input
+            type="text"
+            className="navbar-search-input"
+            placeholder="Search discussions..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+        </div>
 
-        <nav
-          className={`site-nav-links ${menuOpen ? 'active' : ''}`}
-          aria-label="Main Navigation"
-          style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}
-        >
+        {/* Right: Links & Actions */}
+        <div className="navbar-actions">
           <a
-            href="https://joinchorus.app"
+            href="https://joinchorus.app/#problem"
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setMenuOpen(false)}
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
+            className="navbar-link"
           >
-            Website
-          </a>
-
-          <a
-            href="https://docs.joinchorus.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMenuOpen(false)}
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
-          >
-            Documentation
-          </a>
-
-          <a
-            href="https://github.com/joinchorus/chorus"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMenuOpen(false)}
-            style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
-          >
-            GitHub
+            About
           </a>
 
           <button
             onClick={toggleTheme}
-            className="theme-toggle-btn"
+            className="navbar-icon-btn"
             aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
             title={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
           >
             {theme === 'light' ? (
-              /* Moon Icon for Light Mode */
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             ) : (
-              /* Sun Icon for Dark Mode */
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="5" />
                 <line x1="12" y1="1" x2="12" y2="3" />
                 <line x1="12" y1="21" x2="12" y2="23" />
@@ -106,7 +91,11 @@ export const Navbar: React.FC = () => {
               </svg>
             )}
           </button>
-        </nav>
+
+          <Link to="/new" className="navbar-btn-create">
+            + Create Conversation
+          </Link>
+        </div>
       </div>
     </header>
   );
