@@ -14,6 +14,16 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v0.1';
 
+export function getCountryEmoji(countryCode?: string | null): string {
+  if (!countryCode) return '';
+  const code = countryCode.trim().toUpperCase();
+  if (code.length !== 2) return '';
+  const codePoints = code
+    .split('')
+    .map((char) => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
 export function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '';
   try {
@@ -76,7 +86,7 @@ const nowStr = new Date().toISOString();
 
 const MOCK_THREADS: Thread[] = [
   {
-    id: 'th-1',
+    id: 'thd_mock1',
     topic: 'Philosophy',
     board_slug: 'philosophy',
     board_display_name: 'Philosophy',
@@ -91,7 +101,7 @@ const MOCK_THREADS: Thread[] = [
     updated_at: nowStr,
   },
   {
-    id: 'th-2',
+    id: 'thd_mock2',
     topic: 'Programming',
     board_slug: 'programming',
     board_display_name: 'Programming',
@@ -106,7 +116,7 @@ const MOCK_THREADS: Thread[] = [
     updated_at: nowStr,
   },
   {
-    id: 'th-3',
+    id: 'thd_mock3',
     topic: 'AI',
     board_slug: 'ai',
     board_display_name: 'Artificial Intelligence',
@@ -121,7 +131,7 @@ const MOCK_THREADS: Thread[] = [
     updated_at: nowStr,
   },
   {
-    id: 'th-4',
+    id: 'thd_mock4',
     topic: 'Design',
     board_slug: 'design',
     board_display_name: 'Design',
@@ -220,7 +230,7 @@ export async function createThread(payload: CreateThreadPayload): Promise<Thread
     const boardSlug = payload.board_slug || (payload.topic ? payload.topic.toLowerCase() : 'technology');
     const matchedBoard = SYSTEM_BOARDS.find((b) => b.slug === boardSlug);
     const newTh: Thread = {
-      id: `th-${Date.now()}`,
+      id: `thd_${Date.now()}`,
       topic: matchedBoard ? matchedBoard.display_name : payload.topic || 'Technology',
       board_slug: boardSlug,
       board_display_name: matchedBoard ? matchedBoard.display_name : payload.topic || 'Technology',
@@ -253,7 +263,7 @@ export async function createMessage(
   } catch (err) {
     console.warn('Backend API unreachable, creating local mock message:', err);
     return {
-      id: `msg-${Date.now()}`,
+      id: `msg_${Date.now()}`,
       thread_id: threadId,
       content: payload.body,
       conversation_name: payload.conversation_name || 'Anonymous',
@@ -300,7 +310,7 @@ export async function reportMessage(
     return await handleResponse<ReportRecord>(res);
   } catch {
     return {
-      id: `rep-${Date.now()}`,
+      id: `rep_${Date.now()}`,
       thread_id: threadId,
       message_id: messageId,
       reason,

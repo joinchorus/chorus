@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Message as MessageType, TranslationRecord, ReportReason } from '../types';
-import { translateMessage, reportMessage, formatDate } from '../lib/api';
+import { translateMessage, reportMessage, formatDate, getCountryEmoji } from '../lib/api';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 
@@ -81,7 +81,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <Badge variant="name" className="message-author">{authorName}</Badge>
           {message.country && (
             <span title={`Country: ${message.country}`} aria-label={`Country: ${message.country}`}>
-              [{message.country}]
+              {getCountryEmoji(message.country)}
             </span>
           )}
           <span>&bull;</span>

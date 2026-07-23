@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Thread } from '../types';
-import { formatDate } from '../lib/api';
+import { formatDate, getCountryEmoji } from '../lib/api';
 
 interface ThreadCardProps {
   thread: Thread;
@@ -14,7 +14,7 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({ thread }) => {
   const participantCount = thread.participant_count !== undefined ? thread.participant_count : 1;
   const boardSlug = thread.board_slug || (thread.topic || 'technology').toLowerCase();
   const boardName = (thread.board_display_name || thread.topic || 'Technology').toUpperCase();
-  const countryTag = thread.country ? `[${thread.country}]` : '';
+  const countryEmoji = getCountryEmoji(thread.country);
 
   const excerpt =
     thread.body ||
@@ -35,7 +35,7 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({ thread }) => {
 
       <div className="card-meta">
         <span className="card-meta-author">
-          Started by {authorName} {countryTag}
+          Started by {authorName} {countryEmoji ? ` ${countryEmoji}` : ''}
         </span>
         <span className="card-meta-dot">&bull;</span>
         <span className="card-meta-stat">
