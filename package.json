@@ -6,9 +6,5 @@
   "scripts": {
     "build": "cd web && npm ci && npm run build",
     "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^5.2.1",
-    "web": "file:./web"
   }
 }
