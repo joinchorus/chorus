@@ -94,7 +94,7 @@ const MOCK_THREADS: Thread[] = [
     preview: 'When identity is attached to reputation, speech becomes performative. Anonymous discussion forces ideas to stand on their own merit.',
     body: 'When identity is attached to reputation, speech becomes performative. Anonymous discussion forces ideas to stand on their own merit. What are the long-term consequences of permanent digital footprints on free thought?',
     conversation_name: 'River',
-    country: 'DE',
+    country: 'TR',
     message_count: 14,
     participant_count: 6,
     created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
@@ -109,7 +109,7 @@ const MOCK_THREADS: Thread[] = [
     preview: 'Exploring the modern resurgence of minimal dependency graphs and first-principles software architecture.',
     body: 'Exploring the modern resurgence of minimal dependency graphs and first-principles software architecture. Is complexity in web tooling self-inflicted?',
     conversation_name: 'Echo',
-    country: 'US',
+    country: 'TR',
     message_count: 28,
     participant_count: 9,
     created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
@@ -124,7 +124,7 @@ const MOCK_THREADS: Thread[] = [
     preview: 'How do we measure true reasoning capabilities in non-deterministic AI agents when benchmark datasets are leaked into training corpora?',
     body: 'How do we measure true reasoning capabilities in non-deterministic AI agents when benchmark datasets are leaked into training corpora?',
     conversation_name: 'Quartz',
-    country: 'JP',
+    country: 'TR',
     message_count: 42,
     participant_count: 15,
     created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
@@ -139,7 +139,7 @@ const MOCK_THREADS: Thread[] = [
     preview: 'High-density dashboards cause fatigue. Editorial typography and calm layout allow content to take center stage.',
     body: 'High-density dashboards cause fatigue. Editorial typography and calm layout allow content to take center stage.',
     conversation_name: 'Cedar',
-    country: 'SE',
+    country: 'TR',
     message_count: 9,
     participant_count: 4,
     created_at: new Date(Date.now() - 3600000 * 20).toISOString(),
@@ -276,42 +276,60 @@ export async function createMessage(
 export async function translateMessage(
   threadId: string,
   messageId: string,
-  targetLang: string = 'en',
+  targetLang?: string,
   textToTranslate?: string
 ): Promise<TranslationRecord> {
+  const userLang = typeof navigator !== 'undefined' && navigator.language
+    ? navigator.language.split('-')[0].toLowerCase()
+    : 'tr';
+
+  let lang = targetLang || userLang;
+
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/messages/${messageId}/translate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_lang: targetLang }),
+      body: JSON.stringify({ target_lang: lang }),
     });
     return await handleResponse<TranslationRecord>(res);
   } catch {
     if (textToTranslate) {
       try {
-        const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(textToTranslate)}`;
-        const gtxRes = await fetch(gtxUrl);
-        const data = await gtxRes.json();
+        let gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${lang}&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+        let gtxRes = await fetch(gtxUrl);
+        let data = await gtxRes.json();
+        let detectedSource = data && data[2] ? data[2] : '';
+
+        // If source language matches target language, translate to the alternate language (e.g. tr <-> en)
+        if (detectedSource && detectedSource === lang) {
+          const altLang = lang === 'tr' ? 'en' : 'tr';
+          gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${altLang}&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+          gtxRes = await fetch(gtxUrl);
+          data = await gtxRes.json();
+          lang = altLang;
+        }
+
         let translatedText = '';
         if (Array.isArray(data) && Array.isArray(data[0])) {
-          translatedText = data[0].map((part: any) => part && part[0] ? part[0] : '').join('');
+          translatedText = data[0].map((part: any) => (part && part[0] ? part[0] : '')).join('');
         }
+
         if (translatedText) {
           return {
             message_id: messageId,
-            target_lang: targetLang,
+            target_lang: lang,
             translated_text: translatedText,
-            provider: 'google_web',
+            provider: 'Google Translate',
           };
         }
-      } catch {
-        // Fallback
+      } catch (err) {
+        console.warn('Free client translation failed:', err);
       }
     }
     return {
       message_id: messageId,
-      target_lang: targetLang,
-      translated_text: textToTranslate || 'Translation unavailable in offline dev mode.',
+      target_lang: lang,
+      translated_text: textToTranslate || 'Translation unavailable.',
       provider: 'mock',
     };
   }
