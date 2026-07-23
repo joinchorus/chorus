@@ -18,6 +18,9 @@ type Service struct {
 
 // NewService constructs a concrete GeoIP Service with provider chain.
 func NewService(defaultDevCountry string) *Service {
+	if defaultDevCountry == "" {
+		defaultDevCountry = "TR"
+	}
 	localP := NewLocalProvider(defaultDevCountry)
 	headerP := NewHeaderProvider()
 

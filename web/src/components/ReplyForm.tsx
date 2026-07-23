@@ -30,7 +30,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ onSubmit, isSubmitting }) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="composer-box" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '1.25rem' }}>
+    <form onSubmit={handleSubmit} className="composer-box">
       <Textarea
         placeholder="Write your response to the conversation..."
         value={content}
@@ -38,22 +38,26 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ onSubmit, isSubmitting }) 
         rows={4}
         error={error || undefined}
         maxLength={4000}
+        style={{ width: '100%' }}
       />
 
-      <div className="composer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
-        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+      <div className="composer-footer">
+        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', userSelect: 'none' }}>
           <input
             type="checkbox"
             checked={showFlag}
-            onChange={(e) => setShowFlag(e.target.checked)}
-            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-blue)' }}
+            onChange={(e) => {
+              setShowFlag(e.target.checked);
+              localStorage.setItem('chorus_show_country', e.target.checked ? 'true' : 'false');
+            }}
+            style={{ width: '17px', height: '17px', cursor: 'pointer' }}
           />
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Show my country flag <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(Show my country only. Never my location.)</span>
+          <span style={{ fontSize: '0.84375rem', color: 'var(--text-secondary)' }}>
+            Show my country flag <span style={{ color: 'var(--text-muted)', fontSize: '0.78125rem' }}>(Show my country only. Never my location.)</span>
           </span>
         </label>
 
-        <Button type="submit" size="md" disabled={isSubmitting || !content.trim()}>
+        <Button type="submit" variant="primary" size="md" disabled={isSubmitting || !content.trim()}>
           {isSubmitting ? 'Sending...' : 'Send Message'}
         </Button>
       </div>
