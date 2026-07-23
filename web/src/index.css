@@ -288,7 +288,7 @@ html, body {
 }
 
 /* -------------------------------------------------- */
-/* MINIMAL TOPIC FILTERS */
+/* MINIMAL TOPIC / BOARD FILTERS */
 /* -------------------------------------------------- */
 .topic-filters {
   display: flex;
@@ -325,6 +325,61 @@ html, body {
   background-color: var(--bg-subtle);
   border-color: var(--border-default);
   font-weight: 600;
+}
+
+/* -------------------------------------------------- */
+/* BOARD CONTEXT PAGE */
+/* -------------------------------------------------- */
+.board-page-wrapper {
+  padding: 2rem 0 4rem;
+  width: 100%;
+}
+
+.board-header {
+  margin-bottom: 2.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1.75rem;
+}
+
+.board-breadcrumb {
+  margin-bottom: 0.85rem;
+}
+
+.breadcrumb-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.84375rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.breadcrumb-link:hover {
+  color: var(--text-primary);
+}
+
+.board-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.board-description {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.card-topic-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.card-topic-link:hover {
+  color: var(--text-primary);
 }
 
 /* -------------------------------------------------- */

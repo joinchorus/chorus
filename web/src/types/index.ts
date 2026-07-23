@@ -5,10 +5,21 @@ export interface Identity {
   created_at?: string;
 }
 
+export interface Board {
+  id: string;
+  slug: string;
+  display_name: string;
+  description: string;
+  icon?: string;
+  created_at?: string;
+}
+
 export interface Thread {
   id: string;
   title: string;
   topic?: string;
+  board_slug?: string;
+  board_display_name?: string;
   body?: string;
   preview?: string;
   author_id?: string;
@@ -40,6 +51,7 @@ export interface ThreadDetail {
 export interface CreateThreadPayload {
   title: string;
   topic?: string;
+  board_slug?: string;
   body?: string;
   show_country?: boolean;
   conversation_name?: string;

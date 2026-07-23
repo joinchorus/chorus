@@ -12,7 +12,8 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({ thread }) => {
   const authorName = thread.conversation_name || 'Anonymous';
   const replyCount = thread.message_count !== undefined ? thread.message_count : 0;
   const participantCount = thread.participant_count !== undefined ? thread.participant_count : 1;
-  const topicName = (thread.topic || 'Technology').toUpperCase();
+  const boardSlug = thread.board_slug || (thread.topic || 'technology').toLowerCase();
+  const boardName = (thread.board_display_name || thread.topic || 'Technology').toUpperCase();
   const countryTag = thread.country ? `[${thread.country}]` : '';
 
   const excerpt =
@@ -22,7 +23,11 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({ thread }) => {
 
   return (
     <article className="editorial-card">
-      <div className="card-topic">{topicName}</div>
+      <div className="card-topic">
+        <Link to={`/board/${boardSlug}`} className="card-topic-link">
+          {boardName}
+        </Link>
+      </div>
       <h2 className="card-title">
         <Link to={`/thread/${thread.id}`}>{thread.title}</Link>
       </h2>

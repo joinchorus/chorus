@@ -1,5 +1,6 @@
 import type {
   Identity,
+  Board,
   Thread,
   Message,
   ThreadDetail,
@@ -51,12 +52,34 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
+export const SYSTEM_BOARDS: Board[] = [
+  { id: 'brd_technology', slug: 'technology', display_name: 'Technology', description: 'General discussions about technology.' },
+  { id: 'brd_programming', slug: 'programming', display_name: 'Programming', description: 'Software engineering, languages, tooling and architecture.' },
+  { id: 'brd_ai', slug: 'ai', display_name: 'Artificial Intelligence', description: 'AI, machine learning, neural models and autonomous systems.' },
+  { id: 'brd_science', slug: 'science', display_name: 'Science', description: 'Natural sciences, physics, biology, and scientific discoveries.' },
+  { id: 'brd_design', slug: 'design', display_name: 'Design', description: 'Product design, UX, typography and visual systems.' },
+  { id: 'brd_philosophy', slug: 'philosophy', display_name: 'Philosophy', description: 'Ethics, metaphysics, logic, and existential thought.' },
+  { id: 'brd_politics', slug: 'politics', display_name: 'Politics', description: 'Political theory, governance, and public policy.' },
+  { id: 'brd_history', slug: 'history', display_name: 'History', description: 'Historical events, eras, and historiography.' },
+  { id: 'brd_books', slug: 'books', display_name: 'Books', description: 'Literature, prose, and reading.' },
+  { id: 'brd_movies', slug: 'movies', display_name: 'Movies', description: 'Cinema, film theory, and filmmaking.' },
+  { id: 'brd_music', slug: 'music', display_name: 'Music', description: 'Acoustics, composition, genres, and audio.' },
+  { id: 'brd_gaming', slug: 'gaming', display_name: 'Gaming', description: 'Game design, mechanics, and interactive media.' },
+  { id: 'brd_cybersecurity', slug: 'cybersecurity', display_name: 'Cybersecurity', description: 'Security, cryptography, and privacy engineering.' },
+  { id: 'brd_mathematics', slug: 'mathematics', display_name: 'Mathematics', description: 'Pure and applied mathematics, proof, and computation.' },
+  { id: 'brd_engineering', slug: 'engineering', display_name: 'Engineering', description: 'Systems, hardware, and physical engineering.' },
+  { id: 'brd_economics', slug: 'economics', display_name: 'Economics', description: 'Markets, incentive design, and economic theory.' },
+  { id: 'brd_psychology', slug: 'psychology', display_name: 'Psychology', description: 'Cognition, behavior, and mental processes.' },
+];
+
 const nowStr = new Date().toISOString();
 
 const MOCK_THREADS: Thread[] = [
   {
     id: 'th-1',
     topic: 'Philosophy',
+    board_slug: 'philosophy',
+    board_display_name: 'Philosophy',
     title: 'Identity in the Digital Age: Why anonymity enables truth',
     preview: 'When identity is attached to reputation, speech becomes performative. Anonymous discussion forces ideas to stand on their own merit.',
     body: 'When identity is attached to reputation, speech becomes performative. Anonymous discussion forces ideas to stand on their own merit. What are the long-term consequences of permanent digital footprints on free thought?',
@@ -70,6 +93,8 @@ const MOCK_THREADS: Thread[] = [
   {
     id: 'th-2',
     topic: 'Programming',
+    board_slug: 'programming',
+    board_display_name: 'Programming',
     title: 'The shift from monolithic frameworks to zero-dependency architectures',
     preview: 'Exploring the modern resurgence of minimal dependency graphs and first-principles software architecture.',
     body: 'Exploring the modern resurgence of minimal dependency graphs and first-principles software architecture. Is complexity in web tooling self-inflicted?',
@@ -83,6 +108,8 @@ const MOCK_THREADS: Thread[] = [
   {
     id: 'th-3',
     topic: 'AI',
+    board_slug: 'ai',
+    board_display_name: 'Artificial Intelligence',
     title: 'Evaluating autonomous agent reasoning without human bias',
     preview: 'How do we measure true reasoning capabilities in non-deterministic AI agents when benchmark datasets are leaked into training corpora?',
     body: 'How do we measure true reasoning capabilities in non-deterministic AI agents when benchmark datasets are leaked into training corpora?',
@@ -96,6 +123,8 @@ const MOCK_THREADS: Thread[] = [
   {
     id: 'th-4',
     topic: 'Design',
+    board_slug: 'design',
+    board_display_name: 'Design',
     title: 'Quiet design systems: Why less interface means better thinking',
     preview: 'High-density dashboards cause fatigue. Editorial typography and calm layout allow content to take center stage.',
     body: 'High-density dashboards cause fatigue. Editorial typography and calm layout allow content to take center stage.',
@@ -107,6 +136,27 @@ const MOCK_THREADS: Thread[] = [
     updated_at: nowStr,
   },
 ];
+
+export async function fetchBoards(): Promise<Board[]> {
+  try {
+    const res = await fetch(`${API_BASE}/boards`);
+    const data = await handleResponse<{ boards: Board[] }>(res);
+    return data.boards || SYSTEM_BOARDS;
+  } catch {
+    return SYSTEM_BOARDS;
+  }
+}
+
+export async function fetchBoardBySlug(slug: string): Promise<Board> {
+  try {
+    const res = await fetch(`${API_BASE}/boards/${slug}`);
+    return await handleResponse<Board>(res);
+  } catch {
+    const b = SYSTEM_BOARDS.find((x) => x.slug === slug);
+    if (b) return b;
+    throw new Error('Board not found');
+  }
+}
 
 export async function fetchNewConversationName(): Promise<Identity> {
   try {
@@ -167,9 +217,13 @@ export async function createThread(payload: CreateThreadPayload): Promise<Thread
     return await handleResponse<Thread>(res);
   } catch (err) {
     console.warn('Backend API unreachable, creating local mock thread:', err);
+    const boardSlug = payload.board_slug || (payload.topic ? payload.topic.toLowerCase() : 'technology');
+    const matchedBoard = SYSTEM_BOARDS.find((b) => b.slug === boardSlug);
     const newTh: Thread = {
       id: `th-${Date.now()}`,
-      topic: payload.topic || 'General',
+      topic: matchedBoard ? matchedBoard.display_name : payload.topic || 'Technology',
+      board_slug: boardSlug,
+      board_display_name: matchedBoard ? matchedBoard.display_name : payload.topic || 'Technology',
       title: payload.title,
       body: payload.body,
       preview: (payload.body || '').slice(0, 120),

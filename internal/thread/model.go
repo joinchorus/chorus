@@ -6,6 +6,9 @@ import "time"
 type Thread struct {
 	ID               string    `json:"id"`
 	Title            string    `json:"title"`
+	Topic            string    `json:"topic,omitempty"`
+	BoardSlug        string    `json:"board_slug,omitempty"`
+	BoardDisplayName string    `json:"board_display_name,omitempty"`
 	AuthorID         string    `json:"author_id,omitempty"`
 	ConversationName string    `json:"conversation_name"`
 	Country          *string   `json:"country"`
@@ -34,6 +37,8 @@ type ThreadDetail struct {
 type CreateThreadInput struct {
 	Title            string `json:"title"`
 	Body             string `json:"body"`
+	Topic            string `json:"topic,omitempty"`
+	BoardSlug        string `json:"board_slug,omitempty"`
 	ShowCountry      bool   `json:"show_country"`
 	ConversationName string `json:"conversation_name,omitempty"`
 }
@@ -58,4 +63,3 @@ func (i *CreateMessageInput) GetBody() string {
 	}
 	return i.Content
 }
-

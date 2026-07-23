@@ -14,6 +14,7 @@ import (
 type RouterConfig struct {
 	Health      *handler.HealthHandler
 	Identity    *handler.IdentityHandler
+	Board       *handler.BoardHandler
 	Thread      *handler.ThreadHandler
 	Translation *handler.TranslationHandler
 	Report      *handler.ReportHandler
@@ -25,6 +26,10 @@ type RouterConfig struct {
 func NewRouter(cfg RouterConfig) http.Handler {
 	mux := http.NewServeMux()
 
+	if cfg.Board == nil {
+		cfg.Board = handler.NewBoardHandler()
+	}
+
 	// Health endpoint
 	mux.HandleFunc("GET /healthz", cfg.Health.Check)
 
@@ -32,6 +37,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	registerRoutes := func(prefix string) {
 		mux.HandleFunc("POST "+prefix+"/identities", cfg.Identity.Create)
 		mux.HandleFunc("GET "+prefix+"/identities/{id}", cfg.Identity.GetByID)
+
+		mux.HandleFunc("GET "+prefix+"/boards", cfg.Board.ListBoards)
+		mux.HandleFunc("GET "+prefix+"/boards/{slug}", cfg.Board.GetBoard)
 
 		mux.HandleFunc("POST "+prefix+"/threads", cfg.Thread.CreateThread)
 		mux.HandleFunc("GET "+prefix+"/threads", cfg.Thread.ListThreads)
@@ -104,33 +112,21 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			}
 		}
 
-		cleanPath := filepath.Clean(r.URL.Path)
-		targetPath := filepath.Join(cfg.StaticDir, cleanPath)
-
-		// Check if exact file exists
-		info, err := os.Stat(targetPath)
-		if err == nil && !info.IsDir() {
-			http.ServeFile(w, r, targetPath)
+		// Main Web App (chat.joinchorus.app or localhost)
+		staticPath := findFile(filepath.Join(cfg.StaticDir, filepath.Clean(r.URL.Path)))
+		if info, err := os.Stat(staticPath); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, staticPath)
 			return
 		}
 
-		// Fallback to index.html for SPA client-side routes
-		indexPath := filepath.Join(cfg.StaticDir, "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			http.ServeFile(w, r, indexPath)
-			return
-		}
-
-		// If no static build exists, return 200 with fallback info
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("<!DOCTYPE html><html><body><h1>Chorus Application</h1><p>Running chat.joinchorus.app backend API server.</p></body></html>"))
+		// SPA Fallback: serve index.html for unknown routes
+		indexPath := findFile(filepath.Join(cfg.StaticDir, "index.html"))
+		http.ServeFile(w, r, indexPath)
 	})
 
-	// Wrap mux with global middleware stack
-	return middleware.Chain(
-		mux,
-		middleware.Recoverer,
-		middleware.Logger,
-	)
+	// Wrap in global CORS & Logger Middleware
+	handler := middleware.CORS(mux)
+	handler = middleware.Logger(handler)
+
+	return handler
 }
