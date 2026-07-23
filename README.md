@@ -1,6 +1,6 @@
 # Chorus — Anonymous Discussion Engine
 
-[![CI/CD](https://github.com/chorus-project/chorus/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/chorus-project/chorus/actions/workflows/ci-cd.yml)
+[![CI/CD](https://github.com/joinchorus/chorus/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/joinchorus/chorus/actions/workflows/ci-cd.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8.svg)](https://go.dev)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev)

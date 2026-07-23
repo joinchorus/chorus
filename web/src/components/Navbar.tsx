@@ -51,7 +51,7 @@ export const Navbar: React.FC = () => {
           </a>
 
           <a
-            href="https://github.com/chorus-project/chorus"
+            href="https://github.com/joinchorus/chorus"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}
