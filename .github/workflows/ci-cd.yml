@@ -62,9 +62,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Check Firebase Secret
+        id: check_secret
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHORUS }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "SECRET_EXISTS=false" >> $GITHUB_ENV
+            echo "::warning ::FIREBASE_SERVICE_ACCOUNT_CHORUS secret is missing in GitHub repository secrets. Deployment skipped."
+          else
+            echo "SECRET_EXISTS=true" >> $GITHUB_ENV
+          fi
+
       - name: Deploy to Firebase App Hosting
+        if: env.SECRET_EXISTS == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
-        continue-on-error: true
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHORUS }}'
