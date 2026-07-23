@@ -33,7 +33,7 @@ export const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <div className="app-shell">
-          <Navbar />
+          <Navbar onOpenOnboarding={() => setIsOnboardingOpen(true)} />
           <main className="app-main">
             <div className="container">
               <Routes>

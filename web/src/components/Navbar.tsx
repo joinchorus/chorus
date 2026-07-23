@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onOpenOnboarding?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onOpenOnboarding }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('chorus_theme') as 'light' | 'dark') || 'dark';
   });
@@ -9,11 +13,7 @@ export const Navbar: React.FC = () => {
   const searchQuery = searchParams.get('q') || '';
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
+    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('chorus_theme', theme);
   }, [theme]);
 
@@ -56,16 +56,13 @@ export const Navbar: React.FC = () => {
           />
         </div>
 
-        {/* Right: Links & Actions */}
+        {/* Right: Actions & Theme Toggle */}
         <div className="navbar-actions">
-          <a
-            href="https://joinchorus.app/#problem"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="navbar-link"
-          >
-            About
-          </a>
+          {onOpenOnboarding && (
+            <button onClick={onOpenOnboarding} className="navbar-link-btn" title="View Philosophy & Principles">
+              Philosophy
+            </button>
+          )}
 
           <button
             onClick={toggleTheme}
