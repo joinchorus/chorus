@@ -19,6 +19,7 @@ type RouterConfig struct {
 	Translation *handler.TranslationHandler
 	Report      *handler.ReportHandler
 	Moderation  *handler.ModerationHandler
+	AdminToken  string
 	StaticDir   string
 }
 
@@ -33,6 +34,15 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	// Health endpoint
 	mux.HandleFunc("GET /healthz", cfg.Health.Check)
 
+	// Rate limiters for write endpoints (Token Bucket IP Rate Limiting)
+	threadLimiter := middleware.NewIPRateLimiter(0.1, 5) // ~6 threads/min burst 5
+	msgLimiter := middleware.NewIPRateLimiter(0.5, 10)   // ~30 msgs/min burst 10
+	reportLimiter := middleware.NewIPRateLimiter(0.2, 5) // ~12 reports/min burst 5
+
+	threadRateGuard := middleware.RateLimit(threadLimiter)
+	msgRateGuard := middleware.RateLimit(msgLimiter)
+	reportRateGuard := middleware.RateLimit(reportLimiter)
+
 	// Helper to register API routes under a version prefix (/api/v0.1 and /api/v1)
 	registerRoutes := func(prefix string) {
 		mux.HandleFunc("POST "+prefix+"/identities", cfg.Identity.Create)
@@ -41,10 +51,10 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("GET "+prefix+"/boards", cfg.Board.ListBoards)
 		mux.HandleFunc("GET "+prefix+"/boards/{slug}", cfg.Board.GetBoard)
 
-		mux.HandleFunc("POST "+prefix+"/threads", cfg.Thread.CreateThread)
+		mux.Handle("POST "+prefix+"/threads", threadRateGuard(http.HandlerFunc(cfg.Thread.CreateThread)))
 		mux.HandleFunc("GET "+prefix+"/threads", cfg.Thread.ListThreads)
 		mux.HandleFunc("GET "+prefix+"/threads/{id}", cfg.Thread.GetThread)
-		mux.HandleFunc("POST "+prefix+"/threads/{id}/messages", cfg.Thread.AddMessage)
+		mux.Handle("POST "+prefix+"/threads/{id}/messages", msgRateGuard(http.HandlerFunc(cfg.Thread.AddMessage)))
 		mux.HandleFunc("GET "+prefix+"/threads/{id}/messages", cfg.Thread.ListMessages)
 
 		if cfg.Translation != nil {
@@ -52,13 +62,21 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		}
 
 		if cfg.Report != nil {
-			mux.HandleFunc("POST "+prefix+"/threads/{id}/messages/{msg_id}/report", cfg.Report.CreateReport)
+			mux.Handle("POST "+prefix+"/threads/{id}/messages/{msg_id}/report", reportRateGuard(http.HandlerFunc(cfg.Report.CreateReport)))
 		}
 
 		if cfg.Moderation != nil {
-			mux.HandleFunc("GET "+prefix+"/moderation/reports", cfg.Moderation.ListQueue)
-			mux.HandleFunc("GET "+prefix+"/moderation/reports/{id}", cfg.Moderation.GetReportDetail)
-			mux.HandleFunc("POST "+prefix+"/moderation/reports/{id}/action", cfg.Moderation.SubmitAction)
+			authGuard := middleware.RequireAdminAuth(cfg.AdminToken)
+
+			// Auth endpoints for HttpOnly Cookie session management
+			mux.HandleFunc("POST "+prefix+"/moderation/login", cfg.Moderation.Login)
+			mux.HandleFunc("POST "+prefix+"/moderation/logout", cfg.Moderation.Logout)
+			mux.Handle("GET "+prefix+"/moderation/session", authGuard(http.HandlerFunc(cfg.Moderation.GetSession)))
+
+			// Protected Moderation Queue Endpoints
+			mux.Handle("GET "+prefix+"/moderation/reports", authGuard(http.HandlerFunc(cfg.Moderation.ListQueue)))
+			mux.Handle("GET "+prefix+"/moderation/reports/{id}", authGuard(http.HandlerFunc(cfg.Moderation.GetReportDetail)))
+			mux.Handle("POST "+prefix+"/moderation/reports/{id}/action", authGuard(http.HandlerFunc(cfg.Moderation.SubmitAction)))
 		}
 	}
 
@@ -151,9 +169,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		serveFile(indexPath)
 	})
 
-	// Wrap in global CORS & Logger Middleware
-	handler := middleware.CORS(mux)
+	// Wrap in global middleware stack (outermost to innermost: RequestID -> Logger -> Recoverer -> CORS -> SecurityHeaders -> Mux)
+	var handler http.Handler = mux
+	handler = middleware.SecurityHeaders(handler)
+	handler = middleware.CORS(handler)
+	handler = middleware.Recoverer(handler)
 	handler = middleware.Logger(handler)
+	handler = middleware.RequestID(handler)
 
 	return handler
 }

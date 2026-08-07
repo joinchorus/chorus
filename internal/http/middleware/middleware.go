@@ -29,7 +29,7 @@ func (w *statusResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-// Logger logs incoming HTTP requests using log/slog.
+// Logger logs incoming HTTP requests with request correlation ID using log/slog.
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -37,7 +37,9 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(srw, r)
 
+		reqID := httputil.GetRequestID(r.Context())
 		slog.Info("http request",
+			slog.String("request_id", reqID),
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
 			slog.Int("status", srw.statusCode),
@@ -46,13 +48,17 @@ func Logger(next http.Handler) http.Handler {
 	})
 }
 
-// Recoverer handles panics gracefully using log/slog and returns an error response.
+// Recoverer handles panics gracefully with request correlation ID logging and returns a structured error response.
 func Recoverer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				slog.Error("panic recovered", slog.Any("error", err))
-				httputil.WriteError(w, http.ErrAbortHandler)
+				reqID := httputil.GetRequestID(r.Context())
+				slog.Error("panic recovered",
+					slog.String("request_id", reqID),
+					slog.Any("error", err),
+				)
+				httputil.WriteError(w, http.ErrAbortHandler, r)
 			}
 		}()
 		next.ServeHTTP(w, r)
