@@ -164,7 +164,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			return
 		}
 
-		// SPA Fallback: serve index.html for unknown routes
+		// SPA Fallback: serve index.html for page navigation routes (exclude asset extensions like .css, .js, .png)
+		ext := filepath.Ext(r.URL.Path)
+		if ext != "" && ext != ".html" {
+			http.NotFound(w, r)
+			return
+		}
+
 		indexPath := findFile(filepath.Join(cfg.StaticDir, "index.html"))
 		serveFile(indexPath)
 	})

@@ -7,6 +7,25 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const BACKEND_PORT = 8085;
 const DIST_DIR = path.join(__dirname, 'web', 'dist');
 
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.map': 'application/json; charset=utf-8',
+};
+
 // Ensure frontend assets exist
 if (!fs.existsSync(DIST_DIR)) {
   try {
@@ -81,7 +100,6 @@ startGoBackend();
 // 2. HTTP Reverse Proxy & SPA Static File Server
 const proxyServer = http.createServer((req, res) => {
   if (!goProcess) {
-    // Backend not running, serve static SPA assets directly
     serveStaticSPA(req, res);
     return;
   }
@@ -110,12 +128,22 @@ function serveStaticSPA(req, res) {
   const urlPath = req.url ? req.url.split('?')[0] : '/';
   let safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
   let filePath = path.join(DIST_DIR, safePath);
+  const ext = path.extname(filePath).toLowerCase();
 
   fs.stat(filePath, (statErr, stats) => {
     if (!statErr && stats.isFile()) {
-      res.writeHead(200);
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
       fs.createReadStream(filePath).pipe(res);
     } else {
+      // Do NOT serve index.html for missing static asset files (.css, .js, .png, etc.)
+      if (ext && ext !== '.html') {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`Asset not found: ${safePath}`);
+        return;
+      }
+
+      // SPA Fallback for client-side HTML page navigation routes
       const indexPath = path.join(DIST_DIR, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
