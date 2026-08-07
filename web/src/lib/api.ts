@@ -347,10 +347,11 @@ export async function checkAdminSession(): Promise<boolean> {
 }
 
 export async function fetchModerationQueue(licenseKey?: string): Promise<ModerationQueueItem[]> {
+  const key = licenseKey || localStorage.getItem('chorus_admin_license_key') || '';
   const headers: Record<string, string> = {};
-  if (licenseKey) {
-    headers['Authorization'] = `Bearer ${licenseKey}`;
-    headers['X-Admin-License-Key'] = licenseKey;
+  if (key) {
+    headers['Authorization'] = `Bearer ${key}`;
+    headers['X-Admin-License-Key'] = key;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports`, { headers, credentials: 'same-origin' });
@@ -359,10 +360,11 @@ export async function fetchModerationQueue(licenseKey?: string): Promise<Moderat
 }
 
 export async function fetchModerationReportDetail(reportId: string, licenseKey?: string): Promise<ModerationQueueItem> {
+  const key = licenseKey || localStorage.getItem('chorus_admin_license_key') || '';
   const headers: Record<string, string> = {};
-  if (licenseKey) {
-    headers['Authorization'] = `Bearer ${licenseKey}`;
-    headers['X-Admin-License-Key'] = licenseKey;
+  if (key) {
+    headers['Authorization'] = `Bearer ${key}`;
+    headers['X-Admin-License-Key'] = key;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports/${reportId}`, { headers, credentials: 'same-origin' });
@@ -375,10 +377,11 @@ export async function submitModerationAction(
   note?: string,
   licenseKey?: string
 ): Promise<ModerationAction> {
+  const key = licenseKey || localStorage.getItem('chorus_admin_license_key') || '';
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (licenseKey) {
-    headers['Authorization'] = `Bearer ${licenseKey}`;
-    headers['X-Admin-License-Key'] = licenseKey;
+  if (key) {
+    headers['Authorization'] = `Bearer ${key}`;
+    headers['X-Admin-License-Key'] = key;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports/${reportId}/action`, {

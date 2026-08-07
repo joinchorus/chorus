@@ -26,7 +26,8 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     const onboarded = localStorage.getItem('chorus_onboarded');
-    if (!onboarded) {
+    const isModeration = window.location.pathname.startsWith('/moderation') || window.location.pathname.startsWith('/admin');
+    if (!onboarded && !isModeration) {
       setIsOnboardingOpen(true);
     }
   }, []);
