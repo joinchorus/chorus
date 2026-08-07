@@ -15,7 +15,14 @@ import {
   History,
 } from 'lucide-react';
 import type { ModerationQueueItem, ModerationStatus, ReportReason } from '../types';
-import { fetchModerationQueue, submitModerationAction, formatDate, getCountryEmoji } from '../lib/api';
+import {
+  fetchModerationQueue,
+  submitModerationAction,
+  loginAdmin,
+  logoutAdmin,
+  formatDate,
+  getCountryEmoji,
+} from '../lib/api';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -24,6 +31,8 @@ export const AdminModeration: React.FC = () => {
   const [items, setItems] = useState<ModerationQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inputToken, setInputToken] = useState<string>('');
+  const [isAuthError, setIsAuthError] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -44,14 +53,42 @@ export const AdminModeration: React.FC = () => {
   const loadQueue = async () => {
     setLoading(true);
     setError(null);
+    setIsAuthError(false);
     try {
       const data = await fetchModerationQueue();
       setItems(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load moderation queue');
+      const msg = err instanceof Error ? err.message : 'Failed to load moderation queue';
+      setError(msg);
+      if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('forbidden')) {
+        setIsAuthError(true);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputToken.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await loginAdmin(inputToken.trim());
+      setInputToken('');
+      await loadQueue();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setIsAuthError(true);
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutAdmin();
+    setItems([]);
+    setIsAuthError(true);
+    setError('Logged out successfully.');
   };
 
   const handleAction = async (reportId: string, status: ModerationStatus) => {
@@ -162,7 +199,58 @@ export const AdminModeration: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {!isAuthError && !error && (
+          <div style={{ marginTop: '1rem' }}>
+            <Button size="sm" variant="ghost" onClick={handleLogout}>
+              Logout Session
+            </Button>
+          </div>
+        )}
       </header>
+
+      {/* Auth Login Form Overlay if unauthenticated */}
+      {isAuthError && (
+        <div
+          style={{
+            maxWidth: '420px',
+            margin: '2rem auto',
+            padding: '2rem',
+            borderRadius: '0.75rem',
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            textAlign: 'center',
+          }}
+        >
+          <ShieldAlert size={36} style={{ color: '#ef4444', marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            Moderator Authentication Required
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            Enter your platform moderator key to establish a secure HttpOnly admin session.
+          </p>
+
+          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <input
+              type="password"
+              placeholder="Enter Moderator API Key..."
+              value={inputToken}
+              onChange={(e) => setInputToken(e.target.value)}
+              style={{
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.875rem',
+              }}
+            />
+            <Button type="submit" size="sm" style={{ width: '100%' }}>
+              Authenticate & Set HttpOnly Session
+            </Button>
+          </form>
+        </div>
+      )}
 
       {/* Success Notification */}
       {actionSuccess && (
@@ -343,7 +431,7 @@ export const AdminModeration: React.FC = () => {
         <div className="form-error" style={{ padding: '1.5rem', textAlign: 'center' }}>
           <AlertTriangle size={24} style={{ marginBottom: '0.5rem' }} />
           <div>{error}</div>
-          <Button onClick={loadQueue} size="sm" style={{ marginTop: '1rem' }}>
+          <Button onClick={() => loadQueue()} size="sm" style={{ marginTop: '1rem' }}>
             Retry Loading
           </Button>
         </div>

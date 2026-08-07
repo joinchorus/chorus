@@ -1,20 +1,81 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"net/http"
 
+	"chorus/internal/domain"
 	"chorus/internal/http/httputil"
+	"chorus/internal/http/middleware"
 	"chorus/internal/moderation"
 )
 
 // ModerationHandler handles moderation queue HTTP requests.
 type ModerationHandler struct {
 	modService *moderation.Service
+	adminToken string
 }
 
 // NewModerationHandler constructs a concrete ModerationHandler instance.
-func NewModerationHandler(modService *moderation.Service) *ModerationHandler {
-	return &ModerationHandler{modService: modService}
+func NewModerationHandler(modService *moderation.Service, adminToken ...string) *ModerationHandler {
+	tok := ""
+	if len(adminToken) > 0 {
+		tok = adminToken[0]
+	}
+	return &ModerationHandler{
+		modService: modService,
+		adminToken: tok,
+	}
+}
+
+type LoginInput struct {
+	Token string `json:"token"`
+}
+
+// Login authenticates a moderator and sets an HttpOnly session cookie.
+func (h *ModerationHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var input LoginInput
+	if err := httputil.DecodeJSON(w, r, &input); err != nil {
+		httputil.WriteError(w, err)
+		return
+	}
+
+	if h.adminToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(h.adminToken)) != 1 {
+		httputil.WriteError(w, domain.ErrForbidden)
+		return
+	}
+
+	// Set HttpOnly, SameSite=Lax session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     middleware.AdminCookieName,
+		Value:    h.adminToken,
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"status": "authenticated"})
+}
+
+// Logout clears the moderator HttpOnly session cookie.
+func (h *ModerationHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     middleware.AdminCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"status": "logged_out"})
+}
+
+// GetSession returns session status for authenticated moderators.
+func (h *ModerationHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"authenticated": true})
 }
 
 func (h *ModerationHandler) ListQueue(w http.ResponseWriter, r *http.Request) {

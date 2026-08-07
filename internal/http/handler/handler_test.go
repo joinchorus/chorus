@@ -11,8 +11,10 @@ import (
 	"chorus/internal/conversationname"
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
+	"chorus/internal/gitstore"
 	"chorus/internal/idgen"
 	"chorus/internal/identity"
+	"chorus/internal/moderation"
 	"chorus/internal/repository/memory"
 	"chorus/internal/thread"
 )
@@ -113,5 +115,57 @@ func TestHTTP_SubdomainRouting(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for chat.joinchorus.app application page, got %d", rec.Code)
+	}
+}
+
+func TestHTTP_ModerationAuthorization(t *testing.T) {
+	tempDir := t.TempDir()
+	gitStore := gitstore.NewGitStore(tempDir)
+	identityRepo := memory.NewIdentityRepository()
+	threadRepo := memory.NewThreadRepository()
+	idGen := idgen.NewRandomIDGenerator()
+	nameGen := conversationname.NewDefaultGenerator(nil)
+
+	identityService := identity.NewService(identityRepo, idGen, nameGen, time.Now)
+	threadService := thread.NewService(threadRepo, idGen, nameGen, time.Now)
+	modService := moderation.NewService(gitStore, threadService, idGen, time.Now)
+
+	const secretToken = "super-secret-admin-key"
+
+	router := chttp.NewRouter(chttp.RouterConfig{
+		Health:      handler.NewHealthHandler(),
+		Identity:    handler.NewIdentityHandler(identityService),
+		Thread:      handler.NewThreadHandler(threadService, nil),
+		Moderation:  handler.NewModerationHandler(modService),
+		AdminToken:  secretToken,
+	})
+
+	// 1. Unauthenticated Request -> 401 Unauthorized
+	req := httptest.NewRequest("GET", "/api/v0.1/moderation/reports", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized for unauthenticated moderation request, got %d", rec.Code)
+	}
+
+	// 2. Invalid Token -> 403 Forbidden
+	req = httptest.NewRequest("GET", "/api/v0.1/moderation/reports", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden for invalid moderation token, got %d", rec.Code)
+	}
+
+	// 3. Valid Token -> 200 OK
+	req = httptest.NewRequest("GET", "/api/v0.1/moderation/reports", nil)
+	req.Header.Set("Authorization", "Bearer "+secretToken)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for authorized moderation request, got %d", rec.Code)
 	}
 }
