@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldAlert,
+  KeyRound,
   CheckCircle2,
   XCircle,
   Trash2,
@@ -174,6 +175,93 @@ export const AdminModeration: React.FC = () => {
     }
   };
 
+  if (isAuthError) {
+    return (
+      <div className="admin-moderation-page" style={{ minHeight: '65vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            maxWidth: '440px',
+            width: '100%',
+            padding: '2.5rem 2rem',
+            borderRadius: '1rem',
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#ef4444',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <KeyRound size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            Admin License Key Required
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: '1.5' }}>
+            This moderation subpage is restricted. Enter your platform Admin License Key to gain access to the control panel.
+          </p>
+
+          {error && (
+            <div
+              style={{
+                padding: '0.75rem',
+                borderRadius: '0.5rem',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                color: '#ef4444',
+                fontSize: '0.825rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <input
+              type="password"
+              placeholder="Enter Admin License Key..."
+              value={inputToken}
+              onChange={(e) => setInputToken(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                borderRadius: '0.5rem',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.9rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <Button type="submit" size="md" style={{ width: '100%', justifyContent: 'center' }}>
+              Unlock Moderation Panel
+            </Button>
+          </form>
+
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
+            <Link to="/" style={{ fontSize: '0.825rem', color: 'var(--text-tertiary)', textDecoration: 'none' }}>
+              ← Return to Main Discussions
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-moderation-page">
       {/* Header Banner */}
@@ -200,7 +288,7 @@ export const AdminModeration: React.FC = () => {
           </div>
         </div>
 
-        {!isAuthError && !error && (
+        {!error && (
           <div style={{ marginTop: '1rem' }}>
             <Button size="sm" variant="ghost" onClick={handleLogout}>
               Logout Session
@@ -208,49 +296,6 @@ export const AdminModeration: React.FC = () => {
           </div>
         )}
       </header>
-
-      {/* Auth Login Form Overlay if unauthenticated */}
-      {isAuthError && (
-        <div
-          style={{
-            maxWidth: '420px',
-            margin: '2rem auto',
-            padding: '2rem',
-            borderRadius: '0.75rem',
-            backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            textAlign: 'center',
-          }}
-        >
-          <ShieldAlert size={36} style={{ color: '#ef4444', marginBottom: '1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-            Admin License Authorization Required
-          </h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            Enter your platform Admin License Key to access the moderation subpage.
-          </p>
-
-          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input
-              type="password"
-              placeholder="Enter Admin License Key..."
-              value={inputToken}
-              onChange={(e) => setInputToken(e.target.value)}
-              style={{
-                padding: '0.625rem 0.875rem',
-                borderRadius: '0.5rem',
-                backgroundColor: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.875rem',
-              }}
-            />
-            <Button type="submit" size="sm" style={{ width: '100%' }}>
-              Authenticate Admin License
-            </Button>
-          </form>
-        </div>
-      )}
 
       {/* Success Notification */}
       {actionSuccess && (
