@@ -19,6 +19,10 @@ func (s *GitStore) AddAndCommit(ctx context.Context, relativePath string, messag
 }
 
 func (s *GitStore) addAndCommitLocked(ctx context.Context, relativePath string, message string) error {
+	if !s.hasGit {
+		return nil
+	}
+
 	if err := s.runGit(ctx, "add", relativePath); err != nil {
 		return fmt.Errorf("git add failed for %s: %w", relativePath, err)
 	}
@@ -32,6 +36,9 @@ func (s *GitStore) addAndCommitLocked(ctx context.Context, relativePath string, 
 }
 
 func (s *GitStore) runGit(ctx context.Context, args ...string) error {
+	if !s.hasGit {
+		return nil
+	}
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = s.rootPath
 	output, err := cmd.CombinedOutput()

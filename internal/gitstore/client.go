@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 )
@@ -12,12 +13,15 @@ import (
 type GitStore struct {
 	mu       sync.RWMutex
 	rootPath string
+	hasGit   bool
 }
 
 // NewGitStore constructs a GitStore instance for the target root directory.
 func NewGitStore(rootPath string) *GitStore {
+	_, err := exec.LookPath("git")
 	return &GitStore{
 		rootPath: filepath.Clean(rootPath),
+		hasGit:   err == nil,
 	}
 }
 
@@ -33,6 +37,10 @@ func (s *GitStore) Init(ctx context.Context) error {
 
 	if err := os.MkdirAll(s.rootPath, 0755); err != nil {
 		return fmt.Errorf("failed creating data directory: %w", err)
+	}
+
+	if !s.hasGit {
+		return nil
 	}
 
 	gitDir := filepath.Join(s.rootPath, ".git")
