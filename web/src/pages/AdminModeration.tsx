@@ -246,11 +246,12 @@ export const AdminModeration: React.FC = () => {
               autoFocus
               style={{
                 width: '100%',
-                padding: '0.75rem 1rem',
-                borderRadius: '0.5rem',
-                backgroundColor: 'var(--bg-primary)',
+                height: '44px',
+                padding: '0 1rem',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
+                border: '1px solid var(--border-default)',
                 fontSize: '0.9rem',
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -429,18 +430,22 @@ export const AdminModeration: React.FC = () => {
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
               style={{
-                padding: '0.4rem 0.85rem',
-                borderRadius: '0.5rem',
+                height: '38px',
+                padding: '0 0.9rem',
+                borderRadius: '8px',
                 fontSize: '0.8125rem',
                 fontWeight: 600,
-                border: 'none',
+                border: statusFilter === tab.key ? '1px solid var(--border-strong, #6366f1)' : '1px solid var(--border-default)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'all 0.15s ease',
                 backgroundColor:
                   statusFilter === tab.key
                     ? 'var(--accent-primary, #6366f1)'
-                    : 'var(--bg-tertiary, rgba(255,255,255,0.05))',
+                    : 'var(--bg-surface)',
                 color: statusFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                boxSizing: 'border-box',
               }}
             >
               {tab.label}
@@ -455,12 +460,16 @@ export const AdminModeration: React.FC = () => {
             value={reasonFilter}
             onChange={(e) => setReasonFilter(e.target.value)}
             style={{
-              padding: '0.4rem 0.75rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'var(--bg-primary)',
+              height: '38px',
+              padding: '0 0.85rem',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
+              border: '1px solid var(--border-default)',
               fontSize: '0.8125rem',
+              fontWeight: 500,
+              boxSizing: 'border-box',
+              outline: 'none',
             }}
           >
             <option value="all">All Reasons</option>
@@ -729,12 +738,15 @@ export const AdminModeration: React.FC = () => {
                       style={{
                         flex: 1,
                         minWidth: '220px',
-                        padding: '0.45rem 0.75rem',
-                        borderRadius: '0.375rem',
-                        backgroundColor: 'var(--bg-primary)',
+                        height: '38px',
+                        padding: '0 0.85rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-surface)',
                         color: 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
+                        border: '1px solid var(--border-default)',
                         fontSize: '0.8125rem',
+                        boxSizing: 'border-box',
+                        outline: 'none',
                       }}
                     />
 
@@ -760,11 +772,8 @@ export const AdminModeration: React.FC = () => {
 
                     <Button
                       size="sm"
+                      className="btn-danger"
                       disabled={isSubmitting || item.current_status === 'removed'}
-                      style={{
-                        backgroundColor: '#ef4444',
-                        color: '#ffffff',
-                      }}
                       onClick={() => handleAction(report.id, 'removed')}
                     >
                       <Trash2 size={14} style={{ marginRight: '0.35rem' }} />
