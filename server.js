@@ -48,53 +48,73 @@ function commandExists(cmd) {
 
 // 1. Locate or compile Go binary
 let goProcess = null;
-const serverBinary = path.join(__dirname, 'server');
+let lastGoError = 'Go process initialization in progress.';
+const serverBinarySrc = path.join(__dirname, 'server');
+const serverBinaryTmp = path.join('/tmp', 'chorus_server_backend');
 
 function startGoBackend() {
-  const env = { ...process.env, PORT: String(BACKEND_PORT) };
+  const env = { ...process.env, PORT: String(BACKEND_PORT), DATA_DIR: process.env.DATA_DIR || '/tmp/chorus-repository' };
+  let binaryToRun = null;
 
-  if (fs.existsSync(serverBinary)) {
+  if (fs.existsSync(serverBinarySrc)) {
     try {
-      fs.chmodSync(serverBinary, 0o755);
-    } catch (chmodErr) {
-      console.warn('Failed setting chmod on server binary:', chmodErr.message);
+      fs.copyFileSync(serverBinarySrc, serverBinaryTmp);
+      fs.chmodSync(serverBinaryTmp, 0o755);
+      binaryToRun = serverBinaryTmp;
+      console.log(`Successfully prepared executable Go binary at ${serverBinaryTmp}`);
+    } catch (copyErr) {
+      console.warn('Failed copying binary to /tmp, falling back to source binary path:', copyErr.message);
+      try {
+        fs.chmodSync(serverBinarySrc, 0o755);
+      } catch {}
+      binaryToRun = serverBinarySrc;
     }
-    console.log(`Starting compiled Go server binary (${serverBinary}) on port ${BACKEND_PORT}...`);
+  }
+
+  if (binaryToRun) {
+    console.log(`Starting compiled Go server binary (${binaryToRun}) on port ${BACKEND_PORT}...`);
     try {
-      goProcess = spawn(serverBinary, [], { env, stdio: 'inherit' });
+      goProcess = spawn(binaryToRun, [], { env, stdio: 'inherit' });
+      lastGoError = `Go backend process spawned successfully (PID: ${goProcess.pid}).`;
     } catch (err) {
-      console.error(`Failed spawning ${serverBinary}:`, err.message);
+      lastGoError = `Failed spawning Go binary (${binaryToRun}): ${err.message}`;
+      console.error(lastGoError);
     }
   } else if (commandExists('go')) {
     try {
       console.log('Building Go binary from ./cmd/server...');
       execSync('go build -o server ./cmd/server', { stdio: 'inherit' });
-      if (fs.existsSync(serverBinary)) {
+      if (fs.existsSync(serverBinarySrc)) {
         console.log('Starting compiled Go server binary...');
-        goProcess = spawn(serverBinary, [], { env, stdio: 'inherit' });
+        goProcess = spawn(serverBinarySrc, [], { env, stdio: 'inherit' });
+        lastGoError = `Go backend compiled and spawned successfully.`;
       }
     } catch (err) {
       console.warn('go build failed, attempting go run ./cmd/server...', err.message);
       try {
         goProcess = spawn('go', ['run', './cmd/server'], { env, stdio: 'inherit' });
+        lastGoError = `Go backend running via 'go run'.`;
       } catch (spawnErr) {
-        console.error('Failed spawning go run:', spawnErr.message);
+        lastGoError = `Failed spawning 'go run': ${spawnErr.message}`;
+        console.error(lastGoError);
       }
     }
   } else {
-    console.warn('Go runtime toolchain ("go" binary) is not installed in this environment.');
-    console.warn('Node process will serve static SPA assets on port ' + PORT + '. For full Go backend functionality, deploy via Docker container.');
+    lastGoError = 'Go binary or runtime toolchain not found in container environment.';
+    console.warn(lastGoError);
   }
 
   if (goProcess) {
     goProcess.on('error', (err) => {
-      console.error(`Go process error (${err.message}). Operating in static SPA fallback mode.`);
+      lastGoError = `Go process fatal error: ${err.message}`;
+      console.error(lastGoError);
       goProcess = null;
     });
 
-    goProcess.on('exit', (code) => {
+    goProcess.on('exit', (code, signal) => {
       if (code !== null && code !== 0) {
-        console.warn(`Go backend process exited with code ${code}.`);
+        lastGoError = `Go backend process exited with code ${code} (signal: ${signal}).`;
+        console.warn(lastGoError);
       }
     });
   }
@@ -148,6 +168,7 @@ function respondAPIUnavailable(res) {
       error: {
         code: 'service_unavailable',
         message: 'Backend API is starting up or unavailable. Please retry in a moment.',
+        detail: lastGoError,
       },
     })
   );
