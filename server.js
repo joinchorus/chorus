@@ -54,6 +54,11 @@ function startGoBackend() {
   const env = { ...process.env, PORT: String(BACKEND_PORT) };
 
   if (fs.existsSync(serverBinary)) {
+    try {
+      fs.chmodSync(serverBinary, 0o755);
+    } catch (chmodErr) {
+      console.warn('Failed setting chmod on server binary:', chmodErr.message);
+    }
     console.log(`Starting compiled Go server binary (${serverBinary}) on port ${BACKEND_PORT}...`);
     try {
       goProcess = spawn(serverBinary, [], { env, stdio: 'inherit' });
