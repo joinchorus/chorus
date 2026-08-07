@@ -342,10 +342,11 @@ export const AdminModeration: React.FC = () => {
             padding: '1.25rem',
             borderRadius: '0.75rem',
             backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
+            border: '1px solid var(--border-emphasis)',
+            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
             Total Queue
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
