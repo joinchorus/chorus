@@ -70,7 +70,7 @@ func main() {
 	threadH := handler.NewThreadHandler(threadService, geoService)
 	transH := handler.NewTranslationHandler(transService, threadService)
 	reportH := handler.NewReportHandler(reportingService, threadService)
-	modH := handler.NewModerationHandler(moderationService)
+	modH := handler.NewModerationHandler(moderationService, cfg.AdminToken)
 
 	// 5. Router
 	router := chttp.NewRouter(chttp.RouterConfig{
@@ -80,6 +80,7 @@ func main() {
 		Translation: transH,
 		Report:      reportH,
 		Moderation:  modH,
+		AdminToken:  cfg.AdminToken,
 		StaticDir:   "web/dist",
 	})
 
