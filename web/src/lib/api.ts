@@ -9,6 +9,9 @@ import type {
   TranslationRecord,
   ReportRecord,
   ReportReason,
+  ModerationStatus,
+  ModerationAction,
+  ModerationQueueItem,
   APIErrorResponse,
 } from '../types';
 
@@ -286,7 +289,7 @@ export async function reportMessage(
     });
     return await handleResponse<ReportRecord>(res);
   } catch {
-    return {
+    const report: ReportRecord = {
       id: `rep_${Date.now()}`,
       thread_id: threadId,
       message_id: messageId,
@@ -294,5 +297,77 @@ export async function reportMessage(
       details,
       created_at: new Date().toISOString(),
     };
+    MOCK_MODERATION_ITEMS.unshift({
+      report,
+      message: {
+        id: messageId,
+        thread_id: threadId,
+        conversation_name: 'Reported User',
+        country: 'US',
+        content: details || `Reported message content (${reason})`,
+        created_at: new Date().toISOString(),
+      },
+      current_status: 'pending',
+      history: [],
+    });
+    return report;
   }
 }
+
+const MOCK_MODERATION_ITEMS: ModerationQueueItem[] = [];
+
+export async function fetchModerationQueue(): Promise<ModerationQueueItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/moderation/reports`);
+    const data = await handleResponse<{ reports: ModerationQueueItem[] }>(res);
+    return data.reports || [];
+  } catch (err) {
+    console.warn('Backend API unreachable, using local fallback moderation queue:', err);
+    return MOCK_MODERATION_ITEMS;
+  }
+}
+
+export async function fetchModerationReportDetail(reportId: string): Promise<ModerationQueueItem> {
+  try {
+    const res = await fetch(`${API_BASE}/moderation/reports/${reportId}`);
+    return await handleResponse<ModerationQueueItem>(res);
+  } catch (err) {
+    console.warn('Backend API unreachable, finding fallback moderation item:', err);
+    const item = MOCK_MODERATION_ITEMS.find((i) => i.report.id === reportId);
+    if (item) return item;
+    throw new Error('Report item not found');
+  }
+}
+
+export async function submitModerationAction(
+  reportId: string,
+  status: ModerationStatus,
+  note?: string
+): Promise<ModerationAction> {
+  try {
+    const res = await fetch(`${API_BASE}/moderation/reports/${reportId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, note }),
+    });
+    return await handleResponse<ModerationAction>(res);
+  } catch (err) {
+    console.warn('Backend API unreachable, recording local moderation action:', err);
+    const item = MOCK_MODERATION_ITEMS.find((i) => i.report.id === reportId);
+    const action: ModerationAction = {
+      id: `mod_${Date.now()}`,
+      report_id: reportId,
+      thread_id: item?.report.thread_id || '',
+      message_id: item?.report.message_id || '',
+      status,
+      note,
+      created_at: new Date().toISOString(),
+    };
+    if (item) {
+      item.current_status = status;
+      item.history.push(action);
+    }
+    return action;
+  }
+}
+

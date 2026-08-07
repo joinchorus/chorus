@@ -7,6 +7,7 @@ import { Home } from './pages/Home';
 import { BoardDetail } from './pages/BoardDetail';
 import { CreateThread } from './pages/CreateThread';
 import { ThreadDetail } from './pages/ThreadDetail';
+import { AdminModeration } from './pages/AdminModeration';
 import { NotFound } from './pages/NotFound';
 import { OnboardingModal } from './components/OnboardingModal';
 import './App.css';
@@ -42,6 +43,8 @@ export const App: React.FC = () => {
                 <Route path="/board/:slug" element={<BoardDetail />} />
                 <Route path="/new" element={<CreateThread />} />
                 <Route path="/thread/:id" element={<ThreadDetail />} />
+                <Route path="/admin" element={<AdminModeration />} />
+                <Route path="/moderation" element={<AdminModeration />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>

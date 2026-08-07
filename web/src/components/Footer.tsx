@@ -1,10 +1,15 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
   return (
     <footer className="editorial-footer">
       <div className="container footer-inner">
         <div className="footer-links">
+          <Link to="/admin">
+            Moderation
+          </Link>
+          <span className="footer-dot">&bull;</span>
           <a href="https://joinchorus.app" target="_blank" rel="noopener noreferrer">
             Website
           </a>
