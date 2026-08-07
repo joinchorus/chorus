@@ -19,8 +19,6 @@ import type { ModerationQueueItem, ModerationStatus, ReportReason } from '../typ
 import {
   fetchModerationQueue,
   submitModerationAction,
-  loginAdmin,
-  logoutAdmin,
   formatDate,
   getCountryEmoji,
 } from '../lib/api';
@@ -28,12 +26,15 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Skeleton } from '../components/ui/Skeleton';
 
+const LICENSE_STORAGE_KEY = 'chorus_admin_license_key';
+
 export const AdminModeration: React.FC = () => {
   const [items, setItems] = useState<ModerationQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inputToken, setInputToken] = useState<string>('');
-  const [isAuthError, setIsAuthError] = useState(false);
+  const [licenseKey, setLicenseKey] = useState<string>(() => localStorage.getItem(LICENSE_STORAGE_KEY) || '');
+  const [isAuthError, setIsAuthError] = useState<boolean>(() => !localStorage.getItem(LICENSE_STORAGE_KEY));
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -48,22 +49,37 @@ export const AdminModeration: React.FC = () => {
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadQueue();
+    const savedKey = localStorage.getItem(LICENSE_STORAGE_KEY);
+    if (!savedKey) {
+      setIsAuthError(true);
+      setLoading(false);
+      return;
+    }
+    loadQueue(savedKey);
   }, []);
 
-  const loadQueue = async () => {
+  const loadQueue = async (keyToUse?: string) => {
+    const key = keyToUse || licenseKey || localStorage.getItem(LICENSE_STORAGE_KEY) || '';
+    if (!key) {
+      setIsAuthError(true);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setIsAuthError(false);
     try {
-      const data = await fetchModerationQueue();
+      const data = await fetchModerationQueue(key);
       setItems(data);
+      setIsAuthError(false);
+      setLicenseKey(key);
+      localStorage.setItem(LICENSE_STORAGE_KEY, key);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load moderation queue';
       setError(msg);
-      if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('forbidden')) {
-        setIsAuthError(true);
-      }
+      setIsAuthError(true);
+      localStorage.removeItem(LICENSE_STORAGE_KEY);
+      setLicenseKey('');
     } finally {
       setLoading(false);
     }
@@ -71,22 +87,15 @@ export const AdminModeration: React.FC = () => {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputToken.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await loginAdmin(inputToken.trim());
-      setInputToken('');
-      await loadQueue();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-      setIsAuthError(true);
-      setLoading(false);
-    }
+    const enteredKey = inputToken.trim();
+    if (!enteredKey) return;
+    setInputToken('');
+    await loadQueue(enteredKey);
   };
 
   const handleLogout = async () => {
-    await logoutAdmin();
+    localStorage.removeItem(LICENSE_STORAGE_KEY);
+    setLicenseKey('');
     setItems([]);
     setIsAuthError(true);
     setError('Logged out successfully.');
@@ -98,7 +107,7 @@ export const AdminModeration: React.FC = () => {
     const note = notes[reportId] || '';
 
     try {
-      await submitModerationAction(reportId, status, note);
+      await submitModerationAction(reportId, status, note, licenseKey);
       setActionSuccess(`Report #${reportId} updated to ${status}`);
       // Refresh local queue state
       setItems((prev) =>
