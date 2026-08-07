@@ -1,46 +1,44 @@
 # Security Policy
 
-## Official Domains & Security
-
-Chorus operates strictly across standardized public subdomains:
-- **Public Site:** [joinchorus.app](https://joinchorus.app)
-- **Application & API:** [chat.joinchorus.app](https://chat.joinchorus.app)
-- **Documentation & Security Guides:** [docs.joinchorus.app/security](https://docs.joinchorus.app/security)
+The Chorus maintainers take the security of the Chorus platform and its users seriously. This document outlines our supported versions, vulnerability reporting process, and disclosure policy.
 
 ---
 
-## Reporting Vulnerabilities
+## Supported Versions
 
-We take the security and anonymity guarantees of Chorus seriously. If you discover a security vulnerability or potential privacy leak, please report it to us confidentially before publishing it publicly.
+Only the latest release version receives active security updates and patches.
 
-### How to Report
-
-- **Email**: Send details to `barissalih@babacan.me` or contact the maintainers directly.
-- **GitHub Private Vulnerability Reporting**: Use the **Security** tab on the [Chorus GitHub Repository](https://github.com/barissalihbabacan/Chorus/security) to submit a confidential report.
-- **Documentation & Security Policy**: Available at [docs.joinchorus.app/security](https://docs.joinchorus.app/security).
-
-Please include:
-1. A description of the vulnerability and its potential impact.
-2. Step-by-step reproduction instructions or a minimal proof-of-concept.
-3. Any proposed mitigations or fixes.
+| Version | Supported |
+| :--- | :--- |
+| `v0.1.x` (Alpha) | :white_check_mark: Supported |
+| `< 0.1.0` | :x: Unsupported |
 
 ---
 
-## Security Scope & Core Guarantees
+## Reporting a Vulnerability
 
-We are particularly interested in reports related to:
-- **Anonymity Breaches**: Vulnerabilities that allow cross-thread correlation or unmasking of ephemeral identities.
-- **IP Address Leaks**: Exposure of client IP addresses beyond the server's coarse geolocation handling.
-- **Data Store Injection**: Arbitrary file execution or traversal via NDJSON or JSON storage paths.
-- **HTTP Handler Vulnerabilities**: Unhandled panics, resource exhaustion, or payload injection.
+**Please do not report security vulnerabilities through public GitHub issues or public discussions.**
+
+If you discover a security vulnerability in Chorus, please send an email to the security response team or open a private security advisory on GitHub:
+
+- **Security Email**: `security@joinchorus.app` or `baris.salih.babacan@gmail.com`
+- **GitHub Private Security Advisory**: [Open Security Advisory](https://github.com/barissalihbabacan/Chorus/security/advisories/new)
+
+### What to Include in Your Report
+
+Please include as much detail as possible to help us reproduce and resolve the issue quickly:
+- Type of vulnerability (e.g. XSS, authentication bypass, remote code execution)
+- Step-by-step instructions or proof-of-concept (PoC) to reproduce
+- Affected components or endpoint URLs
+- Potential impact and severity assessment
 
 ---
 
-## Disclosure Process
+## Response Timeline & Disclosure Policy
 
-1. **Acknowledgment**: We will acknowledge receipt of your security report within **48 hours**.
-2. **Assessment**: The maintainers will investigate and determine the severity of the issue.
-3. **Patching**: We will prepare a fix and release a security patch (`v0.x.y`).
-4. **Public Disclosure**: Once the fix is released, we will publish a security advisory giving full credit to the reporter.
+- **Initial Acknowledgment**: Within **48 hours** of receiving your report.
+- **Triage & Severity Assessment**: Within **5 business days**.
+- **Remediation & Patch Release**: Security patches will be prioritized and released as quickly as possible.
+- **Public Disclosure**: We practice responsible disclosure. Public advisories are published after a fix has been committed and released.
 
-Thank you for helping keep Chorus secure and private for everyone.
+Thank you for helping keep Chorus and its open-source ecosystem safe!
