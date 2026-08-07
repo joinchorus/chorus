@@ -316,58 +316,74 @@ export async function reportMessage(
 
 const MOCK_MODERATION_ITEMS: ModerationQueueItem[] = [];
 
-export async function fetchModerationQueue(): Promise<ModerationQueueItem[]> {
+export async function loginAdmin(token: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/moderation/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+    credentials: 'same-origin',
+  });
+  await handleResponse<{ status: string }>(res);
+  return true;
+}
+
+export async function logoutAdmin(): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/moderation/logout`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  });
+  await handleResponse<{ status: string }>(res);
+  return true;
+}
+
+export async function checkAdminSession(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/moderation/reports`);
-    const data = await handleResponse<{ reports: ModerationQueueItem[] }>(res);
-    return data.reports || [];
-  } catch (err) {
-    console.warn('Backend API unreachable, using local fallback moderation queue:', err);
-    return MOCK_MODERATION_ITEMS;
+    const res = await fetch(`${API_BASE}/moderation/session`, { credentials: 'same-origin' });
+    const data = await handleResponse<{ authenticated: boolean }>(res);
+    return data.authenticated;
+  } catch {
+    return false;
   }
 }
 
-export async function fetchModerationReportDetail(reportId: string): Promise<ModerationQueueItem> {
-  try {
-    const res = await fetch(`${API_BASE}/moderation/reports/${reportId}`);
-    return await handleResponse<ModerationQueueItem>(res);
-  } catch (err) {
-    console.warn('Backend API unreachable, finding fallback moderation item:', err);
-    const item = MOCK_MODERATION_ITEMS.find((i) => i.report.id === reportId);
-    if (item) return item;
-    throw new Error('Report item not found');
+export async function fetchModerationQueue(adminToken?: string): Promise<ModerationQueueItem[]> {
+  const headers: Record<string, string> = {};
+  if (adminToken) {
+    headers['Authorization'] = `Bearer ${adminToken}`;
   }
+
+  const res = await fetch(`${API_BASE}/moderation/reports`, { headers, credentials: 'same-origin' });
+  const data = await handleResponse<{ reports: ModerationQueueItem[] }>(res);
+  return data.reports || [];
+}
+
+export async function fetchModerationReportDetail(reportId: string, adminToken?: string): Promise<ModerationQueueItem> {
+  const headers: Record<string, string> = {};
+  if (adminToken) {
+    headers['Authorization'] = `Bearer ${adminToken}`;
+  }
+
+  const res = await fetch(`${API_BASE}/moderation/reports/${reportId}`, { headers, credentials: 'same-origin' });
+  return await handleResponse<ModerationQueueItem>(res);
 }
 
 export async function submitModerationAction(
   reportId: string,
   status: ModerationStatus,
-  note?: string
+  note?: string,
+  adminToken?: string
 ): Promise<ModerationAction> {
-  try {
-    const res = await fetch(`${API_BASE}/moderation/reports/${reportId}/action`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, note }),
-    });
-    return await handleResponse<ModerationAction>(res);
-  } catch (err) {
-    console.warn('Backend API unreachable, recording local moderation action:', err);
-    const item = MOCK_MODERATION_ITEMS.find((i) => i.report.id === reportId);
-    const action: ModerationAction = {
-      id: `mod_${Date.now()}`,
-      report_id: reportId,
-      thread_id: item?.report.thread_id || '',
-      message_id: item?.report.message_id || '',
-      status,
-      note,
-      created_at: new Date().toISOString(),
-    };
-    if (item) {
-      item.current_status = status;
-      item.history.push(action);
-    }
-    return action;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (adminToken) {
+    headers['Authorization'] = `Bearer ${adminToken}`;
   }
+
+  const res = await fetch(`${API_BASE}/moderation/reports/${reportId}/action`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ status, note }),
+    credentials: 'same-origin',
+  });
+  return await handleResponse<ModerationAction>(res);
 }
 
