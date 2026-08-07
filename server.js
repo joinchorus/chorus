@@ -99,6 +99,14 @@ startGoBackend();
 
 // 2. HTTP Reverse Proxy & SPA Static File Server
 const proxyServer = http.createServer((req, res) => {
+  const urlPath = req.url ? req.url.split('?')[0] : '/';
+
+  // API endpoints should never fallback to index.html
+  if (!goProcess && (urlPath.startsWith('/api/') || urlPath === '/healthz')) {
+    respondAPIUnavailable(res);
+    return;
+  }
+
   if (!goProcess) {
     serveStaticSPA(req, res);
     return;
@@ -118,17 +126,39 @@ const proxyServer = http.createServer((req, res) => {
   });
 
   proxyReq.on('error', () => {
-    serveStaticSPA(req, res);
+    if (urlPath.startsWith('/api/') || urlPath === '/healthz') {
+      respondAPIUnavailable(res);
+    } else {
+      serveStaticSPA(req, res);
+    }
   });
 
   req.pipe(proxyReq, { end: true });
 });
+
+function respondAPIUnavailable(res) {
+  res.writeHead(503, { 'Content-Type': 'application/json' });
+  res.end(
+    JSON.stringify({
+      error: {
+        code: 'service_unavailable',
+        message: 'Backend API is starting up or unavailable. Please retry in a moment.',
+      },
+    })
+  );
+}
 
 function serveStaticSPA(req, res) {
   const urlPath = req.url ? req.url.split('?')[0] : '/';
   let safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
   let filePath = path.join(DIST_DIR, safePath);
   const ext = path.extname(filePath).toLowerCase();
+
+  // Guard against serving HTML for API calls
+  if (urlPath.startsWith('/api/') || urlPath === '/healthz') {
+    respondAPIUnavailable(res);
+    return;
+  }
 
   fs.stat(filePath, (statErr, stats) => {
     if (!statErr && stats.isFile()) {
