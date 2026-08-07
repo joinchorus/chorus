@@ -346,10 +346,11 @@ export async function checkAdminSession(): Promise<boolean> {
   }
 }
 
-export async function fetchModerationQueue(adminToken?: string): Promise<ModerationQueueItem[]> {
+export async function fetchModerationQueue(licenseKey?: string): Promise<ModerationQueueItem[]> {
   const headers: Record<string, string> = {};
-  if (adminToken) {
-    headers['Authorization'] = `Bearer ${adminToken}`;
+  if (licenseKey) {
+    headers['Authorization'] = `Bearer ${licenseKey}`;
+    headers['X-Admin-License-Key'] = licenseKey;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports`, { headers, credentials: 'same-origin' });
@@ -357,10 +358,11 @@ export async function fetchModerationQueue(adminToken?: string): Promise<Moderat
   return data.reports || [];
 }
 
-export async function fetchModerationReportDetail(reportId: string, adminToken?: string): Promise<ModerationQueueItem> {
+export async function fetchModerationReportDetail(reportId: string, licenseKey?: string): Promise<ModerationQueueItem> {
   const headers: Record<string, string> = {};
-  if (adminToken) {
-    headers['Authorization'] = `Bearer ${adminToken}`;
+  if (licenseKey) {
+    headers['Authorization'] = `Bearer ${licenseKey}`;
+    headers['X-Admin-License-Key'] = licenseKey;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports/${reportId}`, { headers, credentials: 'same-origin' });
@@ -371,11 +373,12 @@ export async function submitModerationAction(
   reportId: string,
   status: ModerationStatus,
   note?: string,
-  adminToken?: string
+  licenseKey?: string
 ): Promise<ModerationAction> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (adminToken) {
-    headers['Authorization'] = `Bearer ${adminToken}`;
+  if (licenseKey) {
+    headers['Authorization'] = `Bearer ${licenseKey}`;
+    headers['X-Admin-License-Key'] = licenseKey;
   }
 
   const res = await fetch(`${API_BASE}/moderation/reports/${reportId}/action`, {

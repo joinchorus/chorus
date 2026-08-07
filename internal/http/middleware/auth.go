@@ -53,7 +53,10 @@ func extractTokenOrCookie(r *http.Request) (string, bool) {
 		return strings.TrimSpace(authHeader), true
 	}
 
-	// 3. Fallback to X-Admin-Token header
+	// 3. Fallback to X-Admin-License-Key or X-Admin-Token header
+	if licenseHeader := r.Header.Get("X-Admin-License-Key"); licenseHeader != "" {
+		return strings.TrimSpace(licenseHeader), true
+	}
 	if customHeader := r.Header.Get("X-Admin-Token"); customHeader != "" {
 		return strings.TrimSpace(customHeader), true
 	}

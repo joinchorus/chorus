@@ -224,16 +224,16 @@ export const AdminModeration: React.FC = () => {
         >
           <ShieldAlert size={36} style={{ color: '#ef4444', marginBottom: '1rem' }} />
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-            Moderator Authentication Required
+            Admin License Authorization Required
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            Enter your platform moderator key to establish a secure HttpOnly admin session.
+            Enter your platform Admin License Key to access the moderation subpage.
           </p>
 
           <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <input
               type="password"
-              placeholder="Enter Moderator API Key..."
+              placeholder="Enter Admin License Key..."
               value={inputToken}
               onChange={(e) => setInputToken(e.target.value)}
               style={{
@@ -246,7 +246,7 @@ export const AdminModeration: React.FC = () => {
               }}
             />
             <Button type="submit" size="sm" style={{ width: '100%' }}>
-              Authenticate & Set HttpOnly Session
+              Authenticate Admin License
             </Button>
           </form>
         </div>

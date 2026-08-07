@@ -21,7 +21,7 @@ func Load() *Config {
 	port := getEnv("PORT", "8085")
 	env := getEnv("ENV", "development")
 	dataDir := getEnv("DATA_DIR", "./data/repository")
-	adminToken := getEnv("CHORUS_ADMIN_TOKEN", getEnv("MODERATOR_API_KEY", "chorus-admin-secret-key-change-in-prod"))
+	adminToken := getEnv("CHORUS_LICENSE_KEY", getEnv("CHORUS_ADMIN_TOKEN", getEnv("MODERATOR_API_KEY", "chorus-admin-secret-key-change-in-prod")))
 
 	return &Config{
 		Port:         port,

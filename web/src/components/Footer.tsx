@@ -6,7 +6,7 @@ export const Footer: React.FC = () => {
     <footer className="editorial-footer">
       <div className="container footer-inner">
         <div className="footer-links">
-          <Link to="/admin">
+          <Link to="/moderation">
             Moderation
           </Link>
           <span className="footer-dot">&bull;</span>
