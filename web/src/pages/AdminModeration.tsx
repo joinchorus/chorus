@@ -436,14 +436,14 @@ export const AdminModeration: React.FC = () => {
                 borderRadius: '8px',
                 fontSize: '0.8125rem',
                 fontWeight: 600,
-                border: statusFilter === tab.key ? '1px solid var(--border-strong, #6366f1)' : '1px solid var(--border-default)',
+                border: statusFilter === tab.key ? '1px solid var(--btn-primary-bg)' : '1px solid var(--border-default)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 backgroundColor:
                   statusFilter === tab.key
-                    ? 'var(--accent-primary, #6366f1)'
+                    ? 'var(--btn-primary-bg)'
                     : 'var(--bg-surface)',
-                color: statusFilter === tab.key ? '#ffffff' : 'var(--text-secondary)',
+                color: statusFilter === tab.key ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 boxSizing: 'border-box',
