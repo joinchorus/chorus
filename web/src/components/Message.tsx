@@ -74,8 +74,10 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     }
   };
 
+  const isRemoved = message.is_removed || message.content === '[This message was removed by moderation]';
+
   return (
-    <article className="message-item">
+    <article className={`message-item ${isRemoved ? 'message-item-removed' : ''}`}>
       <header className="message-header">
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Badge variant="name" className="message-author">{authorName}</Badge>
@@ -88,41 +90,50 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <span className="message-timestamp">{formattedDate}</span>
         </div>
 
-        {/* Action buttons */}
-        <div className="message-actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleTranslateClick}
-            disabled={isTranslating}
-            title="Translate message to English"
-          >
-            {isTranslating
-              ? 'Translating...'
-              : showTranslated
-              ? 'Show original'
-              : translation
-              ? 'Show translation'
-              : 'Translate'}
-          </Button>
+        {/* Action buttons (hidden if message was removed by moderation) */}
+        {!isRemoved && (
+          <div className="message-actions">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleTranslateClick}
+              disabled={isTranslating}
+              title="Translate message to English"
+            >
+              {isTranslating
+                ? 'Translating...'
+                : showTranslated
+                ? 'Show original'
+                : translation
+                ? 'Show translation'
+                : 'Translate'}
+            </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowReportForm(!showReportForm)}
-            disabled={reportSubmitted}
-          >
-            {reportSubmitted ? 'Reported' : 'Report'}
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowReportForm(!showReportForm)}
+              disabled={reportSubmitted}
+            >
+              {reportSubmitted ? 'Reported' : 'Report'}
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Message Content */}
-      <div className="message-body">
-        {showTranslated && translation ? translation.translated_text : message.content}
+      <div
+        className="message-body"
+        style={isRemoved ? { fontStyle: 'italic', color: 'var(--text-muted)' } : undefined}
+      >
+        {isRemoved
+          ? '[This message was removed by moderation]'
+          : showTranslated && translation
+          ? translation.translated_text
+          : message.content}
       </div>
 
-      {showTranslated && translation && (
+      {!isRemoved && showTranslated && translation && (
         <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
           Translated via {translation.provider} backend provider
         </div>

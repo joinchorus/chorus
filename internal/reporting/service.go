@@ -70,7 +70,12 @@ func (s *Service) SubmitReport(ctx context.Context, threadID, messageID string, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	relReportFile := filepath.Join("boards", "general", "threads", threadID, "reports", fmt.Sprintf("%s.json", reportID))
+	relThreadDir, _, err := s.store.FindThreadRelDir(threadID)
+	if err != nil {
+		relThreadDir = filepath.Join("boards", "general", "threads", threadID)
+	}
+
+	relReportFile := filepath.Join(relThreadDir, "reports", fmt.Sprintf("%s.json", reportID))
 	fullReportFile := filepath.Join(s.store.RootPath(), relReportFile)
 
 	if err := gitstore.WriteJSONFile(fullReportFile, report); err != nil {

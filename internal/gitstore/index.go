@@ -15,6 +15,7 @@ import (
 // ThreadIndexItem represents a cached summary entry in the board index.
 type ThreadIndexItem struct {
 	ThreadID         string    `json:"thread_id"`
+	BoardSlug        string    `json:"board_slug,omitempty"`
 	Title            string    `json:"title"`
 	AuthorID         string    `json:"author_id,omitempty"`
 	ConversationName string    `json:"conversation_name,omitempty"`
@@ -25,7 +26,7 @@ type ThreadIndexItem struct {
 	LastMessageAt    time.Time `json:"last_message_at"`
 }
 
-// BoardIndex represents the append-friendly index stored at boards/general/index.json.
+// BoardIndex represents the append-friendly index stored at boards/<board>/index.json.
 type BoardIndex struct {
 	Board   string            `json:"board"`
 	Threads []ThreadIndexItem `json:"threads"`
@@ -62,6 +63,7 @@ func (s *GitStore) UpdateThreadInIndex(ctx context.Context, board string, t *thr
 	for i := range idx.Threads {
 		if idx.Threads[i].ThreadID == t.ID {
 			idx.Threads[i].Title = t.Title
+			idx.Threads[i].BoardSlug = t.BoardSlug
 			idx.Threads[i].UpdatedAt = t.UpdatedAt
 			if initialMsg != nil {
 				idx.Threads[i].MessageCount++
@@ -82,6 +84,7 @@ func (s *GitStore) UpdateThreadInIndex(ctx context.Context, board string, t *thr
 
 		item := ThreadIndexItem{
 			ThreadID:         t.ID,
+			BoardSlug:        t.BoardSlug,
 			Title:            t.Title,
 			AuthorID:         t.AuthorID,
 			ConversationName: t.ConversationName,

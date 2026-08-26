@@ -56,6 +56,11 @@ func (h *TranslationHandler) TranslateMessage(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if targetMsg.IsRemoved || targetMsg.Content == "[This message was removed by moderation]" {
+		httputil.WriteError(w, fmt.Errorf("%w: removed message cannot be translated", domain.ErrValidation))
+		return
+	}
+
 	// 2. Delegate to translation service
 	rec, err := h.transService.TranslateMessage(r.Context(), threadID, messageID, targetMsg.Content, input.TargetLang)
 	if err != nil {

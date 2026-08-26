@@ -25,6 +25,7 @@ export interface Thread {
   author_id?: string;
   conversation_name: string;
   country?: string | null;
+  participant_token?: string;
   created_at: string;
   updated_at: string;
   participant_count?: number;
@@ -39,6 +40,8 @@ export interface Message {
   conversation_name: string;
   country?: string | null;
   content: string;
+  participant_token?: string;
+  is_removed?: boolean;
   created_at: string;
   translated_content?: string;
 }
@@ -61,6 +64,7 @@ export interface CreateMessagePayload {
   body: string;
   show_country?: boolean;
   conversation_name?: string;
+  participant_token?: string;
 }
 
 export interface TranslationRecord {

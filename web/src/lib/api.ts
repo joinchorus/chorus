@@ -123,13 +123,37 @@ export async function fetchNewConversationName(): Promise<Identity> {
   }
 }
 
-export async function fetchThreads(): Promise<Thread[]> {
+export function getThreadParticipantToken(threadId: string): string | null {
   try {
-    const res = await fetch(`${API_BASE}/threads`);
+    return sessionStorage.getItem(`chorus_ptk_${threadId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function setThreadParticipantToken(threadId: string, token: string): void {
+  try {
+    if (token) {
+      sessionStorage.setItem(`chorus_ptk_${threadId}`, token);
+    }
+  } catch {
+    // Storage unavailable or blocked
+  }
+}
+
+export async function fetchThreads(boardSlug?: string): Promise<Thread[]> {
+  try {
+    const url = boardSlug && boardSlug !== 'all'
+      ? `${API_BASE}/threads?board=${encodeURIComponent(boardSlug)}`
+      : `${API_BASE}/threads`;
+    const res = await fetch(url);
     const data = await handleResponse<{ threads: Thread[] }>(res);
     return data.threads || [];
   } catch (err) {
     console.warn('Backend API unreachable, using local fallback threads:', err);
+    if (boardSlug && boardSlug !== 'all') {
+      return MOCK_THREADS.filter((t) => t.board_slug === boardSlug);
+    }
     return MOCK_THREADS;
   }
 }
@@ -164,7 +188,11 @@ export async function createThread(payload: CreateThreadPayload): Promise<Thread
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return await handleResponse<Thread>(res);
+    const thread = await handleResponse<Thread>(res);
+    if (thread && thread.id && thread.participant_token) {
+      setThreadParticipantToken(thread.id, thread.participant_token);
+    }
+    return thread;
   } catch (err) {
     console.warn('Backend API unreachable, creating local mock thread:', err);
     const boardSlug = payload.board_slug || (payload.topic ? payload.topic.toLowerCase() : 'technology');
@@ -193,13 +221,29 @@ export async function createMessage(
   threadId: string,
   payload: CreateMessagePayload
 ): Promise<Message> {
+  const ptk = payload.participant_token || getThreadParticipantToken(threadId) || undefined;
+  const fullPayload = {
+    ...payload,
+    participant_token: ptk,
+  };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (ptk) {
+    headers['X-Participant-Token'] = ptk;
+  }
+
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body: JSON.stringify(fullPayload),
     });
-    return await handleResponse<Message>(res);
+    const message = await handleResponse<Message>(res);
+    if (message && message.participant_token) {
+      setThreadParticipantToken(threadId, message.participant_token);
+    }
+    return message;
   } catch (err) {
     console.warn('Backend API unreachable, creating local mock message:', err);
     return {

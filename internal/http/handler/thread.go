@@ -15,7 +15,7 @@ type ThreadService interface {
 	CreateThread(ctx context.Context, input thread.CreateThreadInput, resolvedCountry string) (*thread.Thread, error)
 	GetThreadByID(ctx context.Context, id string) (*thread.Thread, error)
 	GetThreadDetail(ctx context.Context, id string) (*thread.ThreadDetail, error)
-	ListThreads(ctx context.Context) ([]*thread.Thread, error)
+	ListThreads(ctx context.Context, boardSlug ...string) ([]*thread.Thread, error)
 
 	AddMessage(ctx context.Context, threadID string, input thread.CreateMessageInput, resolvedCountry string) (*thread.Message, error)
 	ListMessages(ctx context.Context, threadID string) ([]*thread.Message, error)
@@ -67,7 +67,18 @@ func (h *ThreadHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ThreadHandler) ListThreads(w http.ResponseWriter, r *http.Request) {
-	threads, err := h.service.ListThreads(r.Context())
+	boardFilter := r.URL.Query().Get("board")
+	if boardFilter == "" {
+		boardFilter = r.URL.Query().Get("board_slug")
+	}
+	if boardFilter == "" {
+		boardFilter = r.URL.Query().Get("topic")
+	}
+	if boardFilter == "all" {
+		boardFilter = ""
+	}
+
+	threads, err := h.service.ListThreads(r.Context(), boardFilter)
 	if err != nil {
 		httputil.WriteError(w, err)
 		return
@@ -102,6 +113,11 @@ func (h *ThreadHandler) AddMessage(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.DecodeJSON(w, r, &input); err != nil {
 		httputil.WriteError(w, err)
 		return
+	}
+
+	// Support participant token passed via custom HTTP header as fallback
+	if input.ParticipantToken == "" {
+		input.ParticipantToken = r.Header.Get("X-Participant-Token")
 	}
 
 	resolvedCountry := h.geoSvc.ResolveCountryFromRequest(r.Context(), r)

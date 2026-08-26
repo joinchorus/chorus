@@ -54,3 +54,94 @@ func (s *GitStore) Init(ctx context.Context) error {
 
 	return nil
 }
+
+// ThreadLocation holds directory and board context for a discovered thread.
+type ThreadLocation struct {
+	ThreadID  string
+	BoardSlug string
+	RelDir    string
+}
+
+// ListAllBoardSlugs returns all board slugs currently containing directories under boards/.
+func (s *GitStore) ListAllBoardSlugs() ([]string, error) {
+	boardsDir := filepath.Join(s.rootPath, "boards")
+	entries, err := os.ReadDir(boardsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	var slugs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			slugs = append(slugs, entry.Name())
+		}
+	}
+	return slugs, nil
+}
+
+// FindThreadRelDir scans board directories to find where a specific thread is stored.
+func (s *GitStore) FindThreadRelDir(threadID string) (relDir string, boardSlug string, err error) {
+	boardsDir := filepath.Join(s.rootPath, "boards")
+	entries, err := os.ReadDir(boardsDir)
+	if err != nil {
+		return "", "", fmt.Errorf("failed reading boards directory: %w", err)
+	}
+
+	for _, bEntry := range entries {
+		if !bEntry.IsDir() {
+			continue
+		}
+		candidateRel := filepath.Join("boards", bEntry.Name(), "threads", threadID)
+		candidateThreadFile := filepath.Join(s.rootPath, candidateRel, "thread.json")
+		if _, err := os.Stat(candidateThreadFile); err == nil {
+			return candidateRel, bEntry.Name(), nil
+		}
+	}
+
+	return "", "", os.ErrNotExist
+}
+
+// ListAllThreadLocations returns all thread locations discovered across all board directories.
+func (s *GitStore) ListAllThreadLocations() ([]ThreadLocation, error) {
+	boardsDir := filepath.Join(s.rootPath, "boards")
+	bEntries, err := os.ReadDir(boardsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ThreadLocation{}, nil
+		}
+		return nil, err
+	}
+
+	var locations []ThreadLocation
+	for _, bEntry := range bEntries {
+		if !bEntry.IsDir() {
+			continue
+		}
+		boardSlug := bEntry.Name()
+		threadsDir := filepath.Join(boardsDir, boardSlug, "threads")
+		tEntries, err := os.ReadDir(threadsDir)
+		if err != nil {
+			continue
+		}
+
+		for _, tEntry := range tEntries {
+			if !tEntry.IsDir() {
+				continue
+			}
+			threadID := tEntry.Name()
+			threadFile := filepath.Join(threadsDir, threadID, "thread.json")
+			if _, err := os.Stat(threadFile); err == nil {
+				locations = append(locations, ThreadLocation{
+					ThreadID:  threadID,
+					BoardSlug: boardSlug,
+					RelDir:    filepath.Join("boards", boardSlug, "threads", threadID),
+				})
+			}
+		}
+	}
+
+	return locations, nil
+}

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchThreads, SYSTEM_BOARDS } from '../lib/api';
+import type { Thread } from '../types';
 import { ThreadCard } from '../components/ThreadCard';
 import { ThreadSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/EmptyState';
@@ -11,9 +12,9 @@ export const Home: React.FC = () => {
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
 
-  const { data: threads, isLoading, error } = useQuery({
+  const { data: threads, isLoading, error } = useQuery<Thread[]>({
     queryKey: ['threads'],
-    queryFn: fetchThreads,
+    queryFn: () => fetchThreads(),
   });
 
   const filteredThreads = useMemo(() => {

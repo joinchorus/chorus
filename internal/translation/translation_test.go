@@ -37,4 +37,15 @@ func TestTranslationService_CacheAndProvider(t *testing.T) {
 	if rec2.TranslatedText != rec1.TranslatedText {
 		t.Errorf("expected cached translation text %q, got %q", rec1.TranslatedText, rec2.TranslatedText)
 	}
+
+	// 3. Removed message cannot be translated
+	_, err = svc.TranslateMessage(ctx, "thd_123", "msg_456", "[This message was removed by moderation]", "es")
+	if err == nil {
+		t.Fatalf("expected error translating removed message, got nil")
+	}
+
+	// 4. DeleteMessageCache removes cache file
+	if err := svc.DeleteMessageCache("thd_123", "msg_456"); err != nil {
+		t.Fatalf("failed deleting message cache: %v", err)
+	}
 }

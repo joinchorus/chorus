@@ -43,3 +43,8 @@ func GetBoardBySlug(slug string) *Board {
 	}
 	return nil
 }
+
+// IsValidBoardSlug checks if a slug matches any system curated board.
+func IsValidBoardSlug(slug string) bool {
+	return GetBoardBySlug(slug) != nil
+}

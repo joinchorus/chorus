@@ -60,3 +60,17 @@ func ValidateID(id, prefix string) error {
 	}
 	return nil
 }
+
+// ValidateBoardSlug verifies that a board slug is non-empty and well-formed.
+func ValidateBoardSlug(slug string) error {
+	trimmed := strings.TrimSpace(slug)
+	if trimmed == "" {
+		return fmt.Errorf("%w: board slug is required", ErrValidation)
+	}
+	for _, ch := range trimmed {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-') {
+			return fmt.Errorf("%w: board slug must contain only lowercase alphanumeric characters and hyphens", ErrValidation)
+		}
+	}
+	return nil
+}

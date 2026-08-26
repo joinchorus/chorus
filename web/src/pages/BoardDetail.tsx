@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchThreads, SYSTEM_BOARDS } from '../lib/api';
+import type { Thread } from '../types';
 import { ThreadCard } from '../components/ThreadCard';
 import { ThreadSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/EmptyState';
@@ -13,20 +14,14 @@ export const BoardDetail: React.FC = () => {
     return SYSTEM_BOARDS.find((b) => b.slug.toLowerCase() === (slug || '').toLowerCase());
   }, [slug]);
 
-  const { data: threads, isLoading, error } = useQuery({
-    queryKey: ['threads'],
-    queryFn: fetchThreads,
+  const { data: threads, isLoading, error } = useQuery<Thread[]>({
+    queryKey: ['threads', slug],
+    queryFn: () => fetchThreads(slug),
   });
 
   const boardThreads = useMemo(() => {
-    if (!threads || !slug) return [];
-    const targetSlug = slug.toLowerCase();
-    return threads.filter((th) => {
-      const thBoardSlug = (th.board_slug || '').toLowerCase();
-      const thTopic = (th.topic || '').toLowerCase();
-      return thBoardSlug === targetSlug || thTopic === targetSlug;
-    });
-  }, [threads, slug]);
+    return threads || [];
+  }, [threads]);
 
   if (!currentBoard) {
     return (

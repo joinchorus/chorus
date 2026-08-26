@@ -2,7 +2,6 @@ package moderation
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,23 +54,16 @@ func (s *Service) ListQueue(ctx context.Context) ([]*ModerationQueueItem, error)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	threadsDir := filepath.Join(s.store.RootPath(), "boards", "general", "threads")
-	threadEntries, err := os.ReadDir(threadsDir)
+	locations, err := s.store.ListAllThreadLocations()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []*ModerationQueueItem{}, nil
-		}
-		return nil, fmt.Errorf("%w: %v", domain.ErrInternal, err)
+		return []*ModerationQueueItem{}, nil
 	}
 
 	var items []*ModerationQueueItem
 
-	for _, tEntry := range threadEntries {
-		if !tEntry.IsDir() {
-			continue
-		}
-		threadID := tEntry.Name()
-		reportsDir := filepath.Join(threadsDir, threadID, "reports")
+	for _, loc := range locations {
+		threadID := loc.ThreadID
+		reportsDir := filepath.Join(s.store.RootPath(), loc.RelDir, "reports")
 		rEntries, err := os.ReadDir(reportsDir)
 		if err != nil {
 			continue
@@ -94,7 +86,7 @@ func (s *Service) ListQueue(ctx context.Context) ([]*ModerationQueueItem, error)
 				continue
 			}
 
-			history, currentStatus := s.getReportHistoryLocked(threadID, rpt.ID)
+			history, currentStatus := s.getReportHistoryLocked(loc.RelDir, rpt.ID)
 			msg := msgMap[rpt.MessageID]
 
 			items = append(items, &ModerationQueueItem{
@@ -164,7 +156,12 @@ func (s *Service) RecordAction(ctx context.Context, reportID string, input Submi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	relActionFile := filepath.Join("boards", "general", "threads", item.Report.ThreadID, "moderation", fmt.Sprintf("%s.json", actionID))
+	relThreadDir, _, err := s.store.FindThreadRelDir(item.Report.ThreadID)
+	if err != nil {
+		relThreadDir = filepath.Join("boards", "general", "threads", item.Report.ThreadID)
+	}
+
+	relActionFile := filepath.Join(relThreadDir, "moderation", fmt.Sprintf("%s.json", actionID))
 	fullActionFile := filepath.Join(s.store.RootPath(), relActionFile)
 
 	if err := gitstore.WriteJSONFile(fullActionFile, action); err != nil {
@@ -174,11 +171,23 @@ func (s *Service) RecordAction(ctx context.Context, reportID string, input Submi
 	commitMsg := fmt.Sprintf("moderation: action %s status=%s for %s", actionID, input.Status, reportID)
 	_ = s.store.AddAndCommit(ctx, relActionFile, commitMsg)
 
+	// If removed, invalidate any cached translation files for this message
+	if input.Status == StatusRemoved {
+		transDir := filepath.Join(s.store.RootPath(), relThreadDir, "translations")
+		if tEntries, err := os.ReadDir(transDir); err == nil {
+			for _, tFile := range tEntries {
+				if strings.HasPrefix(tFile.Name(), item.Report.MessageID+"_") {
+					_ = os.Remove(filepath.Join(transDir, tFile.Name()))
+				}
+			}
+		}
+	}
+
 	return action, nil
 }
 
-func (s *Service) getReportHistoryLocked(threadID, reportID string) ([]*ModerationAction, ModerationStatus) {
-	modDir := filepath.Join(s.store.RootPath(), "boards", "general", "threads", threadID, "moderation")
+func (s *Service) getReportHistoryLocked(relThreadDir, reportID string) ([]*ModerationAction, ModerationStatus) {
+	modDir := filepath.Join(s.store.RootPath(), relThreadDir, "moderation")
 	entries, err := os.ReadDir(modDir)
 	if err != nil {
 		return []*ModerationAction{}, StatusPending

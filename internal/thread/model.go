@@ -12,6 +12,7 @@ type Thread struct {
 	AuthorID         string    `json:"author_id,omitempty"`
 	ConversationName string    `json:"conversation_name"`
 	Country          *string   `json:"country"`
+	ParticipantToken string    `json:"participant_token,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -24,6 +25,17 @@ type Message struct {
 	ConversationName string    `json:"conversation_name"`
 	Country          *string   `json:"country"`
 	Content          string    `json:"content"`
+	ParticipantToken string    `json:"participant_token,omitempty"`
+	IsRemoved        bool      `json:"is_removed,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// Participant represents an active identity participant credential inside a single thread.
+type Participant struct {
+	Token            string    `json:"token,omitempty"`
+	TokenHash        string    `json:"token_hash,omitempty"`
+	ConversationName string    `json:"conversation_name"`
+	AuthorID         string    `json:"author_id"`
 	CreatedAt        time.Time `json:"created_at"`
 }
 
@@ -49,6 +61,7 @@ type CreateMessageInput struct {
 	Content          string `json:"content"` // Alias fallback for legacy content key
 	ShowCountry      bool   `json:"show_country"`
 	ConversationName string `json:"conversation_name,omitempty"`
+	ParticipantToken string `json:"participant_token,omitempty"`
 }
 
 // TranslateMessageInput holds parameters for requesting on-demand translation.

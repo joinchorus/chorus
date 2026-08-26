@@ -51,6 +51,9 @@ func (s *Service) TranslateMessage(ctx context.Context, threadID, messageID, tex
 	if text == "" {
 		return nil, fmt.Errorf("%w: text to translate cannot be empty", domain.ErrValidation)
 	}
+	if text == "[This message was removed by moderation]" {
+		return nil, fmt.Errorf("%w: message removed by moderation cannot be translated", domain.ErrValidation)
+	}
 	if targetLang == "" {
 		targetLang = "en"
 	}
@@ -84,12 +87,58 @@ func (s *Service) TranslateMessage(ctx context.Context, threadID, messageID, tex
 
 func (s *Service) getCachePath(threadID, messageID, targetLang string) string {
 	fileName := fmt.Sprintf("%s_%s.json", messageID, targetLang)
+	// Try finding thread in boards
+	boardsDir := filepath.Join(s.dataDir, "boards")
+	if entries, err := os.ReadDir(boardsDir); err == nil {
+		for _, bEntry := range entries {
+			if !bEntry.IsDir() {
+				continue
+			}
+			candidate := filepath.Join(s.dataDir, "boards", bEntry.Name(), "threads", threadID)
+			if _, err := os.Stat(filepath.Join(candidate, "thread.json")); err == nil {
+				return filepath.Join(candidate, "translations", fileName)
+			}
+		}
+	}
 	return filepath.Join(s.dataDir, "boards", "general", "threads", threadID, "translations", fileName)
+}
+
+func (s *Service) DeleteMessageCache(threadID, messageID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	boardsDir := filepath.Join(s.dataDir, "boards")
+	if entries, err := os.ReadDir(boardsDir); err == nil {
+		for _, bEntry := range entries {
+			if !bEntry.IsDir() {
+				continue
+			}
+			transDir := filepath.Join(s.dataDir, "boards", bEntry.Name(), "threads", threadID, "translations")
+			tEntries, err := os.ReadDir(transDir)
+			if err != nil {
+				continue
+			}
+			for _, tFile := range tEntries {
+				if strings.HasPrefix(tFile.Name(), messageID+"_") {
+					_ = os.Remove(filepath.Join(transDir, tFile.Name()))
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Service) ClearCache(threadID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	transDir := filepath.Join(s.dataDir, "boards", "general", "threads", threadID, "translations")
-	return os.RemoveAll(transDir)
+	boardsDir := filepath.Join(s.dataDir, "boards")
+	if entries, err := os.ReadDir(boardsDir); err == nil {
+		for _, bEntry := range entries {
+			if !bEntry.IsDir() {
+				continue
+			}
+			transDir := filepath.Join(s.dataDir, "boards", bEntry.Name(), "threads", threadID, "translations")
+			_ = os.RemoveAll(transDir)
+		}
+	}
+	return nil
 }

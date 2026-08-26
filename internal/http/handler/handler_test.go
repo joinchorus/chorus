@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,6 +71,9 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 	if createdThread.AuthorID == "" {
 		t.Errorf("expected backend-generated author_id, got empty")
 	}
+	if createdThread.ParticipantToken == "" {
+		t.Errorf("expected creator to receive participant_token on POST response")
+	}
 
 	// 3. Add Message to Thread
 	msgBody, _ := json.Marshal(map[string]any{
@@ -85,13 +89,18 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 		t.Fatalf("expected 201 Created for message, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 4. Fetch Thread Detail
+	// 4. Fetch Thread Detail - Verify no participant token leaked in public GET response
 	req = httptest.NewRequest("GET", "/api/v1/threads/"+createdThread.ID, nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK getting thread detail, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	rawDetailJSON := rec.Body.String()
+	if strings.Contains(rawDetailJSON, "participant_token") {
+		t.Errorf("SECURITY LEAK: participant_token found in public GET /threads/{id} response: %s", rawDetailJSON)
 	}
 
 	var detail thread.ThreadDetail
@@ -101,6 +110,20 @@ func TestHTTP_EndToEndFlow(t *testing.T) {
 
 	if len(detail.Messages) != 2 { // 1 initial message + 1 reply
 		t.Fatalf("expected 2 messages in detail, got %d", len(detail.Messages))
+	}
+
+	// 5. Fetch Thread List - Verify no participant token leaked in public GET /threads response
+	req = httptest.NewRequest("GET", "/api/v1/threads", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK getting threads, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	rawListJSON := rec.Body.String()
+	if strings.Contains(rawListJSON, "participant_token") {
+		t.Errorf("SECURITY LEAK: participant_token found in public GET /threads response: %s", rawListJSON)
 	}
 }
 
