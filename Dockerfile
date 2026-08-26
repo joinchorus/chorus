@@ -19,9 +19,10 @@ FROM alpine:3.19
 RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
-# Copy Go binary & static frontend bundle
+# Copy Go binary & static frontend bundle & public landing/docs
 COPY --from=backend-builder /app/server /app/server
 COPY --from=frontend-builder /app/web/dist /app/web/dist
+COPY public /app/public
 
 # Create repository data directory
 RUN mkdir -p /app/data/repository && git config --global user.name "Chorus" && git config --global user.email "system@chorus.local"

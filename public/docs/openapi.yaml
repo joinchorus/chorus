@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: Chorus API
+  description: Anonymous discussion platform API backed by Git append-only storage.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://chat.joinchorus.app/api/v1
+    description: Production Same-Origin API Server
+  - url: /api/v1
+    description: Local / Relative Path API Server
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /threads:
+    get:
+      summary: List latest threads
+      operationId: listThreads
+      parameters:
+        - name: board
+          in: query
+          description: Optional board slug to filter threads by (e.g. technology, programming)
+          schema:
+            type: string
+            example: technology
+        - name: limit
+          in: query
+          description: Maximum number of threads to return (default 50)
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of threads to skip (default 0)
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of threads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  threads:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Thread'
+
+    post:
+      summary: Create a new discussion thread
+      operationId: createThread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateThreadInput'
+      responses:
+        '201':
+          description: Thread created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '400':
+          $ref: '#/components/responses/400ValidationError'
+
+  /threads/{id}:
+    get:
+      summary: Get thread detail including initial thread metadata and messages
+      operationId: getThreadDetail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Thread ID (e.g. thd_...)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Thread details and message list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadDetail'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /threads/{id}/messages:
+    get:
+      summary: List replies for a thread
+      operationId: listMessages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+    post:
+      summary: Post a reply to a thread
+      operationId: addMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Participant-Token
+          in: header
+          required: false
+          description: Thread-scoped participant token for identity continuity
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageInput'
+      responses:
+        '201':
+          description: Message posted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/400ValidationError'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+components:
+  schemas:
+    Thread:
+      type: object
+      required:
+        - id
+        - title
+        - conversation_name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: thd_8ade181a55615fc0
+        title:
+          type: string
+          example: Go Best Practices
+        topic:
+          type: string
+          example: Technology
+        board_slug:
+          type: string
+          example: technology
+        board_display_name:
+          type: string
+          example: Technology
+        author_id:
+          type: string
+          example: usr_7a18f50e29b1
+        conversation_name:
+          type: string
+          example: Ash
+        country:
+          type: string
+          nullable: true
+          example: US
+        participant_token:
+          type: string
+          description: Thread-scoped identity credential returned only to thread creator
+          example: ptk_9b3f12a84
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      required:
+        - id
+        - thread_id
+        - conversation_name
+        - content
+        - created_at
+      properties:
+        id:
+          type: string
+          example: msg_3c92e10a8b
+        thread_id:
+          type: string
+          example: thd_8ade181a55615fc0
+        author_id:
+          type: string
+          example: usr_90b3a1cf44e
+        conversation_name:
+          type: string
+          example: River
+        country:
+          type: string
+          nullable: true
+          example: US
+        content:
+          type: string
+          example: Use interfaces where they add concrete value.
+        participant_token:
+          type: string
+          description: Thread-scoped identity credential returned only to message author
+          example: ptk_9b3f12a84
+        is_removed:
+          type: boolean
+          description: Indicates whether this message was removed by moderation
+          example: false
+        created_at:
+          type: string
+          format: date-time
+
+    ThreadDetail:
+      type: object
+      required:
+        - thread
+        - messages
+      properties:
+        thread:
+          $ref: '#/components/schemas/Thread'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    CreateThreadInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          example: Architecture Discussion
+        board_slug:
+          type: string
+          example: technology
+        topic:
+          type: string
+          example: Technology
+        body:
+          type: string
+          maxLength: 4000
+          example: Initial discussion post content.
+        show_country:
+          type: boolean
+          default: false
+          example: true
+        conversation_name:
+          type: string
+          example: Ash
+
+    CreateMessageInput:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          type: string
+          maxLength: 4000
+          example: I agree with this design approach.
+        show_country:
+          type: boolean
+          default: false
+        conversation_name:
+          type: string
+          example: River
+        participant_token:
+          type: string
+          description: Thread-scoped identity token to retain pseudonym in this thread
+          example: ptk_9b3f12a84
+
+    APIError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: title is required
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/APIError'
+
+  responses:
+    400ValidationError:
+      description: Bad request or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    404NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

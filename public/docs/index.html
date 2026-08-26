@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chorus Technical Documentation — Architecture, REST API & Git Persistence</title>
+  <meta name="description" content="Official technical documentation for Chorus — an anonymous discussion platform powered by Clean Architecture and native Git persistence.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="canonical" href="https://docs.joinchorus.app/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://docs.joinchorus.app/">
+  <meta property="og:title" content="Chorus Technical Documentation — Architecture, REST API & Git Persistence">
+  <meta property="og:description" content="Official technical specification and developer reference for Chorus — an anonymous discussion platform built on Clean Architecture and native Git persistence.">
+  <meta property="og:site_name" content="Chorus Documentation">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://docs.joinchorus.app/">
+  <meta name="twitter:title" content="Chorus Technical Documentation — Architecture, REST API & Git Persistence">
+  <meta name="twitter:description" content="Official technical specification and developer reference for Chorus — an anonymous discussion platform built on Clean Architecture and native Git persistence.">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://docs.joinchorus.app/#techarticle",
+        "url": "https://docs.joinchorus.app/",
+        "headline": "Chorus Technical Documentation",
+        "description": "Official technical specification and developer reference for Chorus — an anonymous discussion platform built on Clean Architecture and native Git persistence.",
+        "inLanguage": "en",
+        "author": {
+          "@type": "Organization",
+          "name": "Chorus",
+          "url": "https://joinchorus.app"
+        }
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://docs.joinchorus.app/#sourcecode",
+        "name": "Chorus Core Engine",
+        "programmingLanguage": "Go",
+        "codeRepository": "https://github.com/joinchorus/chorus",
+        "license": "https://opensource.org/licenses/MIT",
+        "author": {
+          "@type": "Organization",
+          "name": "Chorus"
+        }
+      },
+      {
+        "@type": "APIReference",
+        "@id": "https://docs.joinchorus.app/#apireference",
+        "name": "Chorus REST API Reference",
+        "url": "https://docs.joinchorus.app/#rest-api",
+        "description": "Comprehensive specification of REST API endpoints for thread management, anonymous temporary identities, message streams, and moderation."
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root {
+      --bg-main: #0d1117;
+      --bg-surface: #161b22;
+      --bg-subtle: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-default: #30363d;
+      --border-subtle: #21262d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #bc8cff;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --sidebar-width: 280px;
+      --toc-width: 260px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background-color: var(--bg-main);
+      border-bottom: 1px solid var(--border-default);
+      height: 64px;
+      display: flex;
+      align-items: center;
+    }
+
+    .header-inner {
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .brand-logo {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    /* Mobile Menu Drawer Button */
+    .mobile-menu-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      color: var(--text-primary);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    @media (max-width: 1024px) {
+      .mobile-menu-btn { display: flex; }
+    }
+
+    .mobile-only-links {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-only-links {
+        display: block;
+        padding-bottom: 0.75rem;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-default);
+      }
+
+      .header-links {
+        display: none !important;
+      }
+    }
+
+    /* Version Selector & Stage Badges */
+    .version-selector {
+      position: relative;
+      display: inline-block;
+    }
+
+    .version-badge-btn {
+      font-size: 0.75rem;
+      font-weight: 600;
+      background-color: var(--bg-subtle);
+      color: var(--accent-blue);
+      padding: 0.2rem 0.65rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-default);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+    }
+
+    .version-badge-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--accent-blue);
+    }
+
+    .stage-badge {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stage-experimental {
+      background-color: rgba(210, 153, 34, 0.15);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210, 153, 34, 0.3);
+    }
+
+    .version-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.5rem;
+      width: 220px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 0.5rem 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 300;
+      display: none;
+    }
+
+    .version-dropdown.show { display: block; }
+
+    .version-group-label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 0.4rem 0.85rem 0.2rem;
+    }
+
+    .version-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .version-option:hover {
+      background-color: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .version-option.active {
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+
+    .version-tag {
+      font-size: 0.6875rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .tag-latest { background-color: rgba(63, 185, 80, 0.15); color: var(--accent-green); }
+    .tag-future { background-color: rgba(139, 148, 158, 0.15); color: var(--text-muted); }
+
+    /* Search Bar Trigger */
+    .search-box {
+      position: relative;
+      width: 420px;
+    }
+
+    .search-input {
+      width: 100%;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      padding: 0.45rem 0.75rem 0.45rem 2.25rem;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-input:focus { border-color: var(--accent-blue); }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-kbd-shortcut {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      gap: 0.25rem;
+      pointer-events: none;
+    }
+
+    .search-kbd-shortcut kbd {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--text-muted);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+    }
+
+    /* Mobile Header & Responsive Fixes */
+    @media (max-width: 768px) {
+      .header-inner {
+        padding: 0 0.85rem;
+        gap: 0.5rem;
+      }
+
+      .header-left {
+        gap: 0.4rem;
+      }
+
+      .brand {
+        gap: 0.35rem;
+      }
+
+      .stage-badge {
+        display: none;
+      }
+
+      .version-badge-btn {
+        padding: 0.2rem 0.45rem;
+        font-size: 0.72rem;
+      }
+
+      .version-dropdown {
+        left: auto;
+        right: 0;
+        width: 190px;
+      }
+
+      .search-box {
+        width: 140px;
+        flex-shrink: 1;
+      }
+
+      .search-input {
+        padding-right: 0.5rem;
+        padding-left: 2rem;
+        font-size: 0.8rem;
+        text-overflow: ellipsis;
+      }
+
+      .search-input::placeholder,
+      .search-input::-webkit-input-placeholder,
+      .search-input::-moz-placeholder,
+      .search-input:-ms-input-placeholder {
+        color: transparent !important;
+        opacity: 0 !important;
+      }
+
+      .search-kbd-shortcut {
+        display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .brand-logo {
+        font-size: 1.05rem;
+      }
+
+      .mobile-menu-btn span {
+        display: none;
+      }
+
+      .search-box {
+        width: 36px;
+        height: 36px;
+        flex: none;
+      }
+
+      .search-input {
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        color: transparent;
+        background-color: var(--bg-subtle);
+        border-radius: 6px;
+      }
+
+      .search-icon {
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    .header-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .header-links a {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    .header-links a:hover { color: var(--text-primary); }
+
+    /* Command Palette Search Modal */
+    .search-modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 12vh;
+    }
+
+    .search-modal-backdrop.show { display: flex; }
+
+    .search-modal {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      width: 90%;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+
+    .search-modal-header {
+      display: flex;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-default);
+      gap: 0.75rem;
+    }
+
+    .search-modal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 1.05rem;
+      font-family: var(--font-sans);
+    }
+
+    .search-results-list {
+      max-height: 420px;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text-secondary);
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .search-result-item:hover, .search-result-item.selected {
+      background-color: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .search-result-item.selected {
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .search-result-title {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--text-primary);
+    }
+
+    .search-result-desc {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .search-result-category {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent-blue);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border-default);
+    }
+
+    .search-highlight {
+      color: var(--accent-blue);
+      font-weight: 700;
+    }
+
+    .search-modal-footer {
+      padding: 0.65rem 1.25rem;
+      background-color: var(--bg-subtle);
+      border-top: 1px solid var(--border-default);
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .search-modal-footer kbd {
+      font-family: var(--font-mono);
+      background-color: var(--bg-main);
+      border: 1px solid var(--border-default);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+    }
+
+    /* Page Layout Grid */
+    .docs-layout {
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex: 1;
+    }
+
+    /* Left Sticky Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+      border-right: 1px solid var(--border-default);
+      padding: 1.75rem 1.25rem;
+      flex-shrink: 0;
+      background-color: var(--bg-main);
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar { display: none; }
+      .sidebar.open {
+        display: block !important;
+        position: fixed;
+        top: 64px; left: 0; bottom: 0;
+        z-index: 150;
+        box-shadow: 8px 0 24px rgba(0,0,0,0.6);
+      }
+    }
+
+    .nav-group { margin-bottom: 1.75rem; }
+
+    .nav-group-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      padding: 0 0.5rem;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 0.45rem 0.65rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .nav-item:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-surface);
+    }
+
+    .nav-item.active {
+      color: var(--accent-blue);
+      background-color: var(--bg-subtle);
+      font-weight: 600;
+    }
+
+    /* Center Documentation Main Content */
+    .main-content {
+      flex: 1;
+      padding: 2.5rem 4rem 6rem;
+      min-width: 0;
+    }
+
+    @media (max-width: 768px) {
+      .main-content { padding: 1.5rem 1.25rem 4rem; }
+    }
+
+    .doc-section {
+      margin-bottom: 5.5rem;
+      scroll-margin-top: 80px;
+    }
+
+    .doc-section h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      letter-spacing: -0.045em;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      color: var(--text-primary);
+    }
+
+    .doc-section h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      margin: 2.75rem 0 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-default);
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    .doc-section h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 2rem 0 0.85rem;
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    .heading-anchor {
+      opacity: 0;
+      margin-left: 0.5rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: normal;
+      font-size: 0.85em;
+      transition: opacity 0.15s ease, color 0.15s ease;
+    }
+
+    h2:hover .heading-anchor, h3:hover .heading-anchor { opacity: 1; }
+    .heading-anchor:hover { color: var(--accent-blue); }
+
+    .doc-section p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.65;
+      margin-bottom: 1.25rem;
+    }
+
+    .doc-section ul, .doc-section ol {
+      margin-left: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    .doc-section li { margin-bottom: 0.5rem; }
+
+    /* Sticky Right TOC */
+    .toc-sidebar {
+      width: var(--toc-width);
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+      border-left: 1px solid var(--border-default);
+      padding: 1.75rem 1.25rem;
+      flex-shrink: 0;
+      background-color: var(--bg-main);
+    }
+
+    @media (max-width: 1280px) {
+      .toc-sidebar { display: none; }
+    }
+
+    .toc-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+    }
+
+    .toc-item {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.3rem 0;
+      transition: color 0.15s ease;
+      line-height: 1.4;
+    }
+
+    .toc-item:hover { color: var(--text-primary); }
+    .toc-item.active { color: var(--accent-blue); font-weight: 600; }
+
+    /* Mobile Floating TOC Toggle Button */
+    .mobile-toc-fab {
+      display: none;
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 200;
+      background-color: var(--accent-blue);
+      color: #0d1117;
+      border: none;
+      border-radius: 30px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+
+    @media (max-width: 1280px) {
+      .mobile-toc-fab { display: flex; align-items: center; gap: 0.5rem; }
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      padding: 3.5rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .hero-banner h1 { margin-bottom: 1rem; }
+    .hero-banner p { font-size: 1.1875rem; color: var(--text-secondary); margin-bottom: 2.25rem; }
+
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+    
+    .btn-hero {
+      background-color: var(--accent-blue);
+      color: #0d1117;
+      padding: 0.7rem 1.75rem;
+      border-radius: 6px;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn-hero:hover { opacity: 0.9; }
+
+    .btn-hero-secondary {
+      background-color: var(--bg-subtle);
+      color: var(--text-primary);
+      border: 1px solid var(--border-default);
+      padding: 0.7rem 1.75rem;
+      border-radius: 6px;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .btn-hero-secondary:hover { background-color: var(--bg-hover); }
+
+    /* Code & Pre Blocks */
+    .code-block-container {
+      position: relative;
+      margin: 1.5rem 0;
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background-color: var(--bg-surface);
+      overflow: hidden;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-subtle);
+      padding: 0.6rem 1.25rem;
+      border-bottom: 1px solid var(--border-default);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .code-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .code-lang-label {
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent-blue);
+    }
+
+    .code-filename {
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      padding: 0.2rem 0.55rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-hover);
+      border-color: var(--accent-blue);
+    }
+
+    .copy-btn.copied {
+      color: var(--accent-green);
+      border-color: var(--accent-green);
+    }
+
+    pre {
+      padding: 1.35rem 1.5rem;
+      overflow-x: auto;
+      max-width: 100%;
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      line-height: 1.55;
+      color: #e6edf3;
+      white-space: pre;
+      word-wrap: normal;
+      word-break: normal;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      color: var(--accent-blue);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+
+    /* REST API Navigation & Endpoint Blocks */
+    .api-nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin: 1.5rem 0 2rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-default);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .api-tab-btn {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      color: var(--text-secondary);
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .api-tab-btn:hover { background-color: var(--bg-subtle); color: var(--text-primary); }
+    .api-tab-btn.active {
+      background-color: var(--bg-subtle);
+      color: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .endpoint-block {
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      background-color: var(--bg-surface);
+      margin: 2.25rem 0;
+      overflow: hidden;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      scroll-margin-top: 80px;
+    }
+
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.5rem;
+      background-color: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-default);
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .endpoint-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .method-badge {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .method-get { background-color: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid rgba(63, 185, 80, 0.3); }
+    .method-post { background-color: rgba(88, 166, 255, 0.15); color: var(--accent-blue); border: 1px solid rgba(88, 166, 255, 0.3); }
+
+    .stability-badge {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    .stability-stable { background-color: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid rgba(63, 185, 80, 0.3); }
+    .stability-experimental { background-color: rgba(210, 153, 34, 0.15); color: var(--accent-orange); border: 1px solid rgba(210, 153, 34, 0.3); }
+
+    .endpoint-path {
+      font-family: var(--font-mono);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      word-break: break-all;
+      overflow-wrap: anywhere;
+    }
+
+    .endpoint-body {
+      padding: 1.5rem;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .copy-url-btn {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      padding: 0.2rem 0.55rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .copy-url-btn:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-hover);
+      border-color: var(--accent-blue);
+    }
+
+    /* GitHub / RFC Callouts */
+    .callout {
+      border-left: 4px solid var(--accent-blue);
+      background-color: rgba(88, 166, 255, 0.08);
+      padding: 1.15rem 1.5rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.75rem 0;
+    }
+
+    .callout-warning {
+      border-left-color: var(--accent-orange);
+      background-color: rgba(210, 153, 34, 0.08);
+    }
+
+    .callout-info {
+      border-left-color: var(--accent-purple);
+      background-color: rgba(188, 140, 255, 0.08);
+    }
+
+    .callout-tip {
+      border-left-color: var(--accent-green);
+      background-color: rgba(63, 185, 80, 0.08);
+    }
+
+    .callout-title {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: var(--text-primary);
+    }
+
+    /* Minimal SVG Diagram Cards */
+    .diagram-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 2.25rem;
+      margin: 2rem 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    .diagram-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .diagram-svg {
+      width: 100%;
+      height: auto;
+    }
+
+    /* Timeline Roadmap */
+    .timeline-container {
+      position: relative;
+      margin: 2rem 0;
+      padding-left: 1.5rem;
+      border-left: 2px solid var(--border-default);
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 2rem;
+      padding-left: 1.5rem;
+    }
+
+    .timeline-marker {
+      position: absolute;
+      left: -2.15rem;
+      top: 0.2rem;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background-color: var(--bg-main);
+      border: 2px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .timeline-item.completed .timeline-marker {
+      background-color: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #0d1117;
+      font-weight: bold;
+    }
+
+    .timeline-item.current .timeline-marker {
+      background-color: var(--accent-blue);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+    }
+
+    .timeline-version {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--accent-blue);
+      margin-bottom: 0.25rem;
+    }
+
+    .timeline-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .timeline-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    /* Minimal Footer */
+    footer {
+      border-top: 1px solid var(--border-default);
+      background-color: var(--bg-surface);
+      padding: 3rem 2rem 2rem;
+      margin-top: auto;
+    }
+
+    .footer-container {
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    .footer-links a:hover { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <button id="mobile-drawer-btn" class="mobile-menu-btn" aria-label="Toggle Navigation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          Menu
+        </button>
+
+        <div class="brand">
+          <a href="https://docs.joinchorus.app" style="text-decoration: none; color: inherit;" class="brand-logo">Chorus</a>
+          
+          <!-- Version Selector Dropdown -->
+          <div class="version-selector">
+            <button id="version-btn" class="version-badge-btn" aria-haspopup="true" aria-expanded="false" title="Switch documentation version">
+              <span id="selected-version">v0.1.0-alpha</span>
+              <span class="stage-badge stage-experimental">Experimental</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M1 1L5 5L9 1" />
+              </svg>
+            </button>
+            
+            <div id="version-menu" class="version-dropdown">
+              <div class="version-group-label">Latest Release</div>
+              <div class="version-option active" data-version="v0.1.0-alpha">
+                <span>v0.1.0-alpha</span>
+                <span class="version-tag tag-latest">Latest</span>
+              </div>
+              
+              <div class="version-group-label" style="margin-top: 0.4rem;">Future / Roadmap</div>
+              <div class="version-option" data-version="v0.2.0">
+                <span>v0.2.0</span>
+                <span class="version-tag tag-future">Planned</span>
+              </div>
+              <div class="version-option" data-version="v0.3.0">
+                <span>v0.3.0</span>
+                <span class="version-tag tag-future">Planned</span>
+              </div>
+              <div class="version-option" data-version="v1.0.0">
+                <span>v1.0.0</span>
+                <span class="version-tag tag-future">Target</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Palette Search Trigger -->
+      <div class="search-box" id="search-trigger">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" class="search-input" placeholder="Search docs (Press / or Ctrl+K)" readonly />
+        <div class="search-kbd-shortcut">
+          <kbd>⌘</kbd>
+          <kbd>K</kbd>
+        </div>
+      </div>
+
+      <nav class="header-links" id="header-links">
+        <a href="https://joinchorus.app" target="_blank">Website</a>
+        <a href="https://chat.joinchorus.app" target="_blank">Launch App</a>
+        <a href="https://github.com/joinchorus/chorus" target="_blank">GitHub Repository</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Command Palette Modal -->
+  <div id="search-modal" class="search-modal-backdrop">
+    <div class="search-modal">
+      <div class="search-modal-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="modal-search-input" class="search-modal-input" placeholder="Type to search endpoints, architecture, variables..." autofocus />
+      </div>
+      <div id="search-results" class="search-results-list">
+        <!-- Dynamic Results Populated by JS -->
+      </div>
+      <div class="search-modal-footer">
+        <span><kbd>↑</kbd> <kbd>↓</kbd> Navigate</span>
+        <span><kbd>↵</kbd> Select</span>
+        <span><kbd>ESC</kbd> Close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Floating TOC FAB Button -->
+  <button id="mobile-toc-fab" class="mobile-toc-fab" aria-label="Table of Contents">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="8" y1="6" x2="21" y2="6"></line>
+      <line x1="8" y1="12" x2="21" y2="12"></line>
+      <line x1="8" y1="18" x2="21" y2="18"></line>
+      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+    </svg>
+    TOC
+  </button>
+
+  <!-- Docs Grid Layout -->
+  <div class="docs-layout">
+
+    <!-- Left Sticky Sidebar -->
+    <aside id="sidebar-drawer" class="sidebar">
+      <div class="nav-group mobile-only-links">
+        <div class="nav-group-title">Links</div>
+        <a href="https://joinchorus.app" target="_blank" class="nav-item">Website &rarr;</a>
+        <a href="https://chat.joinchorus.app" target="_blank" class="nav-item">Launch App &rarr;</a>
+        <a href="https://github.com/joinchorus/chorus" target="_blank" class="nav-item">GitHub Repository &rarr;</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Overview</div>
+        <a href="#getting-started" class="nav-item active">Getting Started</a>
+        <a href="#architecture" class="nav-item">System Architecture</a>
+        <a href="#rest-api" class="nav-item">REST API Reference</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Deep Dives</div>
+        <a href="#persistence" class="nav-item">Git Persistence RFC</a>
+        <a href="#deployment" class="nav-item">Deployment</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Development</div>
+        <a href="#development" class="nav-item">Codebase & Clean Arch</a>
+        <a href="#roadmap" class="nav-item">Product Roadmap</a>
+        <a href="#contributing" class="nav-item">Contributing Guide</a>
+      </div>
+    </aside>
+
+    <!-- Main Center Content -->
+    <main class="main-content">
+
+      <!-- 1. Hero Landing -->
+      <section id="hero" class="doc-section">
+        <div class="hero-banner">
+          <h1>Chorus Technical Documentation</h1>
+          <p>Official technical specification and developer reference for Chorus — an anonymous discussion platform built on Clean Architecture and native Git persistence.</p>
+          <div class="hero-actions">
+            <a href="#getting-started" class="btn-hero">Quickstart &rarr;</a>
+            <a href="https://github.com/barissalihbabacan/Chorus" target="_blank" class="btn-hero-secondary">GitHub Repository</a>
+          </div>
+        </div>
+
+        <h2 id="getting-started">
+          Getting Started
+          <a href="#getting-started" class="heading-anchor">#</a>
+        </h2>
+        <p>Chorus is an open-source discussion system written in Go and React. Persistence is implemented directly on top of the Git object model in local disk storage without a relational database layer.</p>
+
+        <h3>System Requirements</h3>
+        <ul>
+          <li><strong>Go:</strong> 1.22+ installed on PATH</li>
+          <li><strong>Node.js:</strong> 18.x or 20.x+ (npm 10.x+)</li>
+          <li><strong>Git:</strong> Installed on system PATH (<code>git --version</code>)</li>
+        </ul>
+
+        <h3>Local Development Setup</h3>
+        <p>Execute the Go HTTP backend server and Vite React client in development mode:</p>
+
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <div class="code-title-group">
+              <span class="code-lang-label">Terminal</span>
+            </div>
+            <button class="copy-btn" data-code="git clone https://github.com/barissalihbabacan/Chorus.git&#10;cd Chorus&#10;go run ./cmd/server&#10;cd web && npm install && npm run dev -- --host">Copy</button>
+          </div>
+          <pre><code># 1. Clone repository
+git clone https://github.com/barissalihbabacan/Chorus.git
+cd Chorus
+
+# 2. Launch Go Backend (Port 8085)
+go run ./cmd/server
+
+# 3. Launch React Client (Port 3000)
+cd web
+npm install
+npm run dev -- --host</code></pre>
+        </div>
+
+        <h3>Docker Execution</h3>
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <div class="code-title-group">
+              <span class="code-lang-label">Docker</span>
+              <span class="code-filename">Dockerfile</span>
+            </div>
+            <button class="copy-btn" data-code="docker build -t chorus:latest .&#10;docker run -d -p 8085:8085 -v chorus-data:/app/data chorus:latest">Copy</button>
+          </div>
+          <pre><code>docker build -t chorus:latest .
+docker run -d -p 8085:8085 -v chorus-data:/app/data chorus:latest</code></pre>
+        </div>
+      </section>
+
+      <!-- 2. System Architecture -->
+      <section id="architecture" class="doc-section">
+        <h2>
+          System Architecture
+          <a href="#architecture" class="heading-anchor">#</a>
+        </h2>
+        <p>The backend applies <strong>Clean Architecture</strong> boundaries to isolate HTTP transport handlers, domain services, and Git repository drivers.</p>
+
+        <div class="diagram-card">
+          <div class="diagram-title">Complete 8-Layer Component Flow</div>
+          <svg class="diagram-svg" viewBox="0 0 800 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Tier 1: Browser -->
+            <rect x="250" y="20" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="46" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">Browser Client</text>
+            <path d="M400 62V78" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 2: React SPA -->
+            <rect x="250" y="80" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="106" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">React SPA (Vite Client)</text>
+            <path d="M400 122V138" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 3: HTTP Router -->
+            <rect x="250" y="140" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="166" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">HTTP Router (http.NewServeMux)</text>
+            <path d="M400 182V198" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 4: Handlers -->
+            <rect x="250" y="200" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="226" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">Handlers (internal/http/handler)</text>
+            <path d="M400 242V258" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 5: Domain Services -->
+            <rect x="250" y="260" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="286" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">Services (thread, identity, reporting)</text>
+            <path d="M400 302V318" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 6: GitStore -->
+            <rect x="250" y="320" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="346" fill="#f0f6fc" font-size="13" font-weight="700" text-anchor="middle">GitStore (internal/gitstore)</text>
+            <path d="M400 362V378" stroke="#58a6ff" stroke-width="2"/>
+
+            <!-- Tier 7: Git CLI Execution -->
+            <rect x="250" y="380" width="300" height="42" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="400" y="406" fill="#8b949e" font-size="13" font-weight="700" text-anchor="middle">Git CLI Execution (os/exec)</text>
+            <path d="M400 422V438" stroke="#3fb950" stroke-width="2"/>
+
+            <!-- Tier 8: Native Git Repository -->
+            <rect x="230" y="440" width="340" height="38" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="2"/>
+            <text x="400" y="464" fill="#3fb950" font-size="13" font-weight="700" text-anchor="middle">Native Git Repository (./data/repository)</text>
+          </svg>
+        </div>
+
+        <h3>Layer Responsibilities Specification</h3>
+        <ul>
+          <li><strong>Browser Client:</strong> Renders user interface, captures user input, and manages client-side routing.</li>
+          <li><strong>React SPA:</strong> Communicates via same-origin REST API requests to <code>/api/v0.1/*</code>.</li>
+          <li><strong>HTTP Router:</strong> Hostname subdomain dispatcher and endpoint routing in <code>internal/http/router.go</code>.</li>
+          <li><strong>Handlers:</strong> Parses JSON request payloads, validates input constraints, and returns HTTP status codes.</li>
+          <li><strong>Services:</strong> Implements domain rules (thread initialization, conversation name assignment, moderation queue).</li>
+          <li><strong>GitStore:</strong> Serializes domain models into filesystem paths and manages repository locking.</li>
+          <li><strong>Git CLI:</strong> Invokes native Git commands via Go's <code>os/exec</code> package.</li>
+          <li><strong>Git Repository:</strong> Stores immutable commit DAG objects in <code>./data/repository</code>.</li>
+        </ul>
+
+        <h3>Expanded 9-Stage Request Lifecycle</h3>
+        <div class="diagram-card">
+          <div class="diagram-title">Detailed 9-Stage Write Lifecycle</div>
+          <svg class="diagram-svg" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="30" width="210" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="145" y="55" fill="#f0f6fc" font-size="12" text-anchor="middle">1. Browser Request</text>
+
+            <path d="M250 50H290" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="290" y="30" width="210" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="395" y="55" fill="#f0f6fc" font-size="12" text-anchor="middle">2. HTTP Router (mux)</text>
+
+            <path d="M500 50H540" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="540" y="30" width="220" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="650" y="55" fill="#f0f6fc" font-size="12" text-anchor="middle">3. Input Validation</text>
+
+            <path d="M650 70V120" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="540" y="120" width="220" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="650" y="145" fill="#f0f6fc" font-size="12" text-anchor="middle">4. Conversation Name Resolver</text>
+
+            <path d="M540 140H500" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="290" y="120" width="210" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="395" y="145" fill="#f0f6fc" font-size="12" text-anchor="middle">5. Domain Service</text>
+
+            <path d="M290 140H250" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="40" y="120" width="210" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="145" y="145" fill="#f0f6fc" font-size="12" text-anchor="middle">6. Git Persistence Driver</text>
+
+            <path d="M145 160V210" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="40" y="210" width="210" height="40" rx="6" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="145" y="235" fill="#f0f6fc" font-size="12" text-anchor="middle">7. JSON Serialization</text>
+
+            <path d="M250 230H290" stroke="#58a6ff" stroke-width="2"/>
+
+            <rect x="290" y="210" width="210" height="40" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="2"/>
+            <text x="395" y="235" fill="#3fb950" font-size="12" font-weight="700" text-anchor="middle">8. Git Commit</text>
+
+            <path d="M500 230H540" stroke="#3fb950" stroke-width="2"/>
+
+            <rect x="540" y="210" width="220" height="40" rx="6" fill="#21262d" stroke="#3fb950" stroke-width="2"/>
+            <text x="650" y="235" fill="#3fb950" font-size="12" font-weight="700" text-anchor="middle">9. HTTP Response (201 Created)</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- 3. REST API Reference -->
+      <section id="rest-api" class="doc-section">
+        <h2>
+          REST API Reference
+          <a href="#rest-api" class="heading-anchor">#</a>
+        </h2>
+
+        <!-- Sub-navigation Category Filter Tabs -->
+        <div class="api-nav-tabs">
+          <a href="#api-healthz" class="api-tab-btn">System</a>
+          <a href="#api-identities" class="api-tab-btn">Identities</a>
+          <a href="#api-threads" class="api-tab-btn">Threads</a>
+          <a href="#api-messages" class="api-tab-btn">Messages</a>
+          <a href="#api-translate" class="api-tab-btn">Translation</a>
+          <a href="#api-moderation" class="api-tab-btn">Moderation</a>
+        </div>
+
+        <!-- 1. GET /healthz -->
+        <div id="api-healthz" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-get">GET</span>
+              <span class="endpoint-path">/healthz</span>
+              <span class="stability-badge stability-stable">Stable</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/healthz">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Health check probe verifying server liveness.</p>
+            <p><strong>Path Parameters:</strong> None</p>
+            <p><strong>Query Parameters:</strong> None</p>
+            <p><strong>Possible Status Codes:</strong> <code>200 OK</code></p>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code="curl -X GET https://chat.joinchorus.app/healthz">Copy</button>
+              </div>
+              <pre><code>curl -X GET https://chat.joinchorus.app/healthz</code></pre>
+            </div>
+
+            <h3>Example JSON Response (200 OK)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"status":"ok","environment":"development"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "status": "ok",
+  "environment": "development"
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. POST /api/v0.1/identities -->
+        <div id="api-identities" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-post">POST</span>
+              <span class="endpoint-path">/api/v0.1/identities</span>
+              <span class="stability-badge stability-stable">Stable</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/identities">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Registers a session identity and resolves initial conversation name.</p>
+            <p><strong>Path Parameters:</strong> None</p>
+            <p><strong>Query Parameters:</strong> None</p>
+            <p><strong>Possible Status Codes:</strong> <code>201 Created</code>, <code>400 Bad Request</code></p>
+
+            <h3>Request Body</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"conversation_name":"Ash","show_country":true}'>Copy</button>
+              </div>
+              <pre><code>{
+  "conversation_name": "Ash",
+  "show_country": true
+}</code></pre>
+            </div>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code='curl -X POST https://chat.joinchorus.app/api/v0.1/identities -H "Content-Type: application/json" -d "{\"conversation_name\":\"Ash\",\"show_country\":true}"'>Copy</button>
+              </div>
+              <pre><code>curl -X POST https://chat.joinchorus.app/api/v0.1/identities \
+  -H "Content-Type: application/json" \
+  -d '{"conversation_name":"Ash","show_country":true}'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (201 Created)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"id":"usr_7f8a91b2c3d4e5f6","conversation_name":"Ash","country":"TR","created_at":"2026-07-23T14:45:00Z"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "id": "usr_7f8a91b2c3d4e5f6",
+  "conversation_name": "Ash",
+  "country": "TR",
+  "created_at": "2026-07-23T14:45:00Z"
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. GET /api/v0.1/threads -->
+        <div id="api-threads" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-get">GET</span>
+              <span class="endpoint-path">/api/v0.1/threads</span>
+              <span class="stability-badge stability-stable">Stable</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/threads">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Returns a list of discussion threads.</p>
+            <p><strong>Path Parameters:</strong> None</p>
+            <p><strong>Query Parameters:</strong></p>
+            <ul>
+              <li><code>limit</code> (int, optional): Maximum threads to return (default: 50).</li>
+              <li><code>offset</code> (int, optional): Pagination offset.</li>
+            </ul>
+            <p><strong>Possible Status Codes:</strong> <code>200 OK</code></p>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code="curl -X GET 'https://chat.joinchorus.app/api/v0.1/threads?limit=50&offset=0'">Copy</button>
+              </div>
+              <pre><code>curl -X GET 'https://chat.joinchorus.app/api/v0.1/threads?limit=50&offset=0'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (200 OK)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='[{"id":"thd_9de587d7f3f435e2","title":"Welcome to Chorus","conversation_name":"Ash","country":"TR","created_at":"2026-07-23T10:15:34Z","updated_at":"2026-07-23T10:15:34Z"}]'>Copy</button>
+              </div>
+              <pre><code>[
+  {
+    "id": "thd_9de587d7f3f435e2",
+    "title": "Welcome to Chorus",
+    "conversation_name": "Ash",
+    "country": "TR",
+    "created_at": "2026-07-23T10:15:34Z",
+    "updated_at": "2026-07-23T10:15:34Z"
+  }
+]</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. POST /api/v0.1/threads -->
+        <div id="api-create-thread" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-post">POST</span>
+              <span class="endpoint-path">/api/v0.1/threads</span>
+              <span class="stability-badge stability-stable">Stable</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/threads">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Creates a new thread and assigns a thread-scoped conversation name.</p>
+            <p><strong>Path Parameters:</strong> None</p>
+            <p><strong>Query Parameters:</strong> None</p>
+            <p><strong>Possible Status Codes:</strong> <code>201 Created</code>, <code>400 Bad Request</code></p>
+
+            <h3>Request Body</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"title":"Architecture Specification","body":"Discussing Clean Architecture and Git persistence.","show_country":true}'>Copy</button>
+              </div>
+              <pre><code>{
+  "title": "Architecture Specification",
+  "body": "Discussing Clean Architecture and Git persistence.",
+  "show_country": true
+}</code></pre>
+            </div>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code='curl -X POST https://chat.joinchorus.app/api/v0.1/threads -H "Content-Type: application/json" -d "{\"title\":\"Architecture Specification\",\"body\":\"Discussing Clean Architecture and Git persistence.\",\"show_country\":true}"'>Copy</button>
+              </div>
+              <pre><code>curl -X POST https://chat.joinchorus.app/api/v0.1/threads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Architecture Specification",
+    "body": "Discussing Clean Architecture and Git persistence.",
+    "show_country": true
+  }'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (201 Created)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"id":"thd_9de587d7f3f435e2","title":"Architecture Specification","conversation_name":"River","country":"TR","created_at":"2026-07-23T14:46:00Z","updated_at":"2026-07-23T14:46:00Z"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "id": "thd_9de587d7f3f435e2",
+  "title": "Architecture Specification",
+  "conversation_name": "River",
+  "country": "TR",
+  "created_at": "2026-07-23T14:46:00Z",
+  "updated_at": "2026-07-23T14:46:00Z"
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. POST /api/v0.1/threads/{id}/messages -->
+        <div id="api-messages" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-post">POST</span>
+              <span class="endpoint-path">/api/v0.1/threads/{id}/messages</span>
+              <span class="stability-badge stability-stable">Stable</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/threads/{id}/messages">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Appends a message reply to a thread under an assigned conversation name.</p>
+            <p><strong>Path Parameters:</strong></p>
+            <ul><li><code>id</code> (string, required): Thread ID (e.g. <code>thd_9de587d7f3f435e2</code>).</li></ul>
+            <p><strong>Possible Status Codes:</strong> <code>201 Created</code>, <code>400 Bad Request</code>, <code>404 Not Found</code></p>
+
+            <h3>Request Body</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"body":"Implementation details match Clean Architecture conventions.","show_country":true}'>Copy</button>
+              </div>
+              <pre><code>{
+  "body": "Implementation details match Clean Architecture conventions.",
+  "show_country": true
+}</code></pre>
+            </div>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code='curl -X POST https://chat.joinchorus.app/api/v0.1/threads/thd_9de587d7f3f435e2/messages -H "Content-Type: application/json" -d "{\"body\":\"Implementation details match Clean Architecture conventions.\",\"show_country\":true}"'>Copy</button>
+              </div>
+              <pre><code>curl -X POST https://chat.joinchorus.app/api/v0.1/threads/thd_9de587d7f3f435e2/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "body": "Implementation details match Clean Architecture conventions.",
+    "show_country": true
+  }'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (201 Created)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"id":"msg_2222222222222222","thread_id":"thd_9de587d7f3f435e2","conversation_name":"Echo","country":"DE","content":"Implementation details match Clean Architecture conventions.","created_at":"2026-07-23T14:47:00Z"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "id": "msg_2222222222222222",
+  "thread_id": "thd_9de587d7f3f435e2",
+  "conversation_name": "Echo",
+  "country": "DE",
+  "content": "Implementation details match Clean Architecture conventions.",
+  "created_at": "2026-07-23T14:47:00Z"
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. POST /api/v0.1/threads/{id}/messages/{msg_id}/translate -->
+        <div id="api-translate" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-post">POST</span>
+              <span class="endpoint-path">/api/v0.1/threads/{id}/messages/{msg_id}/translate</span>
+              <span class="stability-badge stability-experimental">Experimental</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/threads/{id}/messages/{msg_id}/translate">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Requests on-demand translation for a message (target language defaults to English).</p>
+            <p><strong>Path Parameters:</strong></p>
+            <ul>
+              <li><code>id</code> (string, required): Thread ID.</li>
+              <li><code>msg_id</code> (string, required): Message ID.</li>
+            </ul>
+            <p><strong>Possible Status Codes:</strong> <code>200 OK</code>, <code>500 Internal Error</code></p>
+
+            <h3>Request Body</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"target_lang":"en"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "target_lang": "en"
+}</code></pre>
+            </div>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code='curl -X POST https://chat.joinchorus.app/api/v0.1/threads/thd_9de587d7f3f435e2/messages/msg_2222222222222222/translate -H "Content-Type: application/json" -d "{\"target_lang\":\"en\"}"'>Copy</button>
+              </div>
+              <pre><code>curl -X POST https://chat.joinchorus.app/api/v0.1/threads/thd_9de587d7f3f435e2/messages/msg_2222222222222222/translate \
+  -H "Content-Type: application/json" \
+  -d '{"target_lang":"en"}'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (200 OK)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"message_id":"msg_2222222222222222","original":"Implementation details match Clean Architecture conventions.","translated":"Implementation details match Clean Architecture conventions.","target_language":"en","cached":true}'>Copy</button>
+              </div>
+              <pre><code>{
+  "message_id": "msg_2222222222222222",
+  "original": "Implementation details match Clean Architecture conventions.",
+  "translated": "Implementation details match Clean Architecture conventions.",
+  "target_language": "en",
+  "cached": true
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. POST /api/v0.1/moderation/reports/{id}/action -->
+        <div id="api-moderation" class="endpoint-block">
+          <div class="endpoint-header">
+            <div class="endpoint-header-left">
+              <span class="method-badge method-post">POST</span>
+              <span class="endpoint-path">/api/v0.1/moderation/reports/{id}/action</span>
+              <span class="stability-badge stability-experimental">Experimental</span>
+            </div>
+            <button class="copy-url-btn" data-url="https://chat.joinchorus.app/api/v0.1/moderation/reports/{id}/action">Copy URL</button>
+          </div>
+          <div class="endpoint-body">
+            <p><strong>Purpose:</strong> Submits a moderation action for a report (valid status values: <code>pending</code>, <code>reviewed</code>, <code>dismissed</code>, <code>removed</code>).</p>
+            <p><strong>Path Parameters:</strong></p>
+            <ul><li><code>id</code> (string, required): Report ID.</li></ul>
+            <p><strong>Possible Status Codes:</strong> <code>200 OK</code>, <code>400 Bad Request</code></p>
+
+            <h3>Request Body</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"status":"dismissed","note":"Report reviewed."}'>Copy</button>
+              </div>
+              <pre><code>{
+  "status": "dismissed",
+  "note": "Report reviewed."
+}</code></pre>
+            </div>
+
+            <h3>Example Curl Request</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">Terminal</span></div>
+                <button class="copy-btn" data-code='curl -X POST https://chat.joinchorus.app/api/v0.1/moderation/reports/rpt_3333333333333333/action -H "Content-Type: application/json" -d "{\"status\":\"dismissed\",\"note\":\"Report reviewed.\"}"'>Copy</button>
+              </div>
+              <pre><code>curl -X POST https://chat.joinchorus.app/api/v0.1/moderation/reports/rpt_3333333333333333/action \
+  -H "Content-Type: application/json" \
+  -d '{"status":"dismissed","note":"Report reviewed."}'</code></pre>
+            </div>
+
+            <h3>Example JSON Response (200 OK)</h3>
+            <div class="code-block-wrapper">
+              <div class="code-header">
+                <div class="code-title-group"><span class="code-lang-label">JSON</span></div>
+                <button class="copy-btn" data-code='{"id":"act_4444444444444444","report_id":"rpt_3333333333333333","thread_id":"thd_9de587d7f3f435e2","message_id":"msg_2222222222222222","status":"dismissed","note":"Report reviewed.","created_at":"2026-07-23T14:49:00Z"}'>Copy</button>
+              </div>
+              <pre><code>{
+  "id": "act_4444444444444444",
+  "report_id": "rpt_3333333333333333",
+  "thread_id": "thd_9de587d7f3f435e2",
+  "message_id": "msg_2222222222222222",
+  "status": "dismissed",
+  "note": "Report reviewed.",
+  "created_at": "2026-07-23T14:49:00Z"
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Git Persistence Engine Specification -->
+      <section id="persistence" class="doc-section">
+        <h2>
+          Git Persistence Engine RFC Specification
+          <a href="#persistence" class="heading-anchor">#</a>
+        </h2>
+
+        <div class="callout callout-info">
+          <div class="callout-title">[!] NOTE: Architectural Decision Record (ADR-001)</div>
+          <p style="margin: 0; font-size: 0.9375rem;">
+            Chorus persists threads and messages directly on top of the Git object model in local disk storage without a relational database layer.
+          </p>
+        </div>
+
+        <h3>Current Implementation</h3>
+        <p>The driver in <code>internal/gitstore</code> executes Git commit operations on local disk storage (default path: <code>./data/repository</code>):</p>
+        <ul>
+          <li><strong>Repository Layout:</strong> Directory trees contain thread metadata (<code>threads/{thread_id}/metadata.json</code>) and message streams (<code>threads/{thread_id}/messages.jsonl</code>).</li>
+          <li><strong>Commit Serialization:</strong> Thread creation and message replies execute Git commit operations via Go's <code>os/exec</code> package.</li>
+        </ul>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">[!] WARNING: Known Implementation Limitations</div>
+          <p style="margin: 0; font-size: 0.9375rem;">
+            Concurrent write operations on a single node rely on OS file locking during commit creation. Periodic <code>git gc</code> maintenance is required to pack loose objects over time.
+          </p>
+        </div>
+
+        <h3>Planned Microbenchmarks</h3>
+        <p>Microbenchmarks covering commit latency, memory allocation, and concurrency will be published prior to the Beta release using Go's test framework (<code>go test -bench ./...</code>).</p>
+      </section>
+
+      <!-- 5. Engineering Timeline Roadmap -->
+      <section id="roadmap" class="doc-section">
+        <h2>
+          Engineering Product Timeline
+          <a href="#roadmap" class="heading-anchor">#</a>
+        </h2>
+        <p>Development phase milestones and release roadmap:</p>
+
+        <div class="timeline-container">
+          <!-- Item 1: v0.1 Alpha -->
+          <div class="timeline-item completed">
+            <div class="timeline-marker">✔</div>
+            <div class="timeline-version">v0.1 Alpha (Completed)</div>
+            <div class="timeline-title">Git Persistence Engine Core</div>
+            <div class="timeline-desc">Clean Architecture backend in Go, thread-scoped conversation name assignment, and local Git persistence driver.</div>
+          </div>
+
+          <!-- Item 2: v0.2 -->
+          <div class="timeline-item current">
+            <div class="timeline-marker">●</div>
+            <div class="timeline-version">v0.2 (Active Stage)</div>
+            <div class="timeline-title">Realtime Updates & Translation</div>
+            <div class="timeline-desc">Server-Sent Events (SSE) for realtime message streaming and backend disk-cached translation service.</div>
+          </div>
+
+          <!-- Item 3: v0.3 -->
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-version">v0.3 (Planned)</div>
+            <div class="timeline-title">Moderation UI & Action Queue</div>
+            <div class="timeline-desc">Moderation dashboard for queue management and message review actions.</div>
+          </div>
+
+          <!-- Item 4: v0.4 -->
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-version">v0.4 (Planned)</div>
+            <div class="timeline-title">Event Sourcing & Asynchronous Commit Queue</div>
+            <div class="timeline-desc">In-memory write buffer queue for batching high-frequency commit creation.</div>
+          </div>
+
+          <!-- Item 5: v0.5 -->
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-version">v0.5 (Research)</div>
+            <div class="timeline-title">Distributed P2P Git Sync</div>
+            <div class="timeline-desc">Experimental peer-to-peer repository synchronization protocol over libp2p.</div>
+          </div>
+
+          <!-- Item 6: v1.0 -->
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-version">v1.0 (Target)</div>
+            <div class="timeline-title">Stable Production Release</div>
+            <div class="timeline-desc">Production stable API baseline, multi-region replication, and frozen contract specification.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Deployment -->
+      <section id="deployment" class="doc-section">
+        <h2>
+          Deployment Configuration
+          <a href="#deployment" class="heading-anchor">#</a>
+        </h2>
+        <p>Chorus can be deployed as a single binary, Docker container, or systemd Linux service.</p>
+
+        <h3>Environment Variables</h3>
+        <ul>
+          <li><code>PORT</code>: HTTP listening port (default: <code>8085</code>).</li>
+          <li><code>DATA_DIR</code>: Directory path for Git storage (default: <code>./data/repository</code>).</li>
+          <li><code>ENV</code>: Mode (<code>development</code> or <code>production</code>).</li>
+          <li><code>TRANSLATION_API_KEY</code>: Optional API key for translation provider.</li>
+        </ul>
+      </section>
+
+      <!-- 7. Contributing Guide -->
+      <section id="contributing" class="doc-section">
+        <h2>
+          Contributing Guide
+          <a href="#contributing" class="heading-anchor">#</a>
+        </h2>
+        <p>Guidelines for contributing code and documentation updates.</p>
+
+        <h3>Workflow</h3>
+        <ol>
+          <li><strong>Clean Architecture:</strong> Maintain strict boundaries between Handler, Service, and Repository.</li>
+          <li><strong>Tests:</strong> Ensure <code>go test -v ./...</code> and <code>npm run build</code> pass clean.</li>
+          <li><strong>Commits:</strong> Follow conventional commit prefixes (e.g. <code>feat(gitstore): ...</code>).</li>
+        </ol>
+      </section>
+
+    </main>
+
+    <!-- Right Sticky Table of Contents -->
+    <aside class="toc-sidebar">
+      <div class="toc-title">On this page</div>
+      <a href="#getting-started" class="toc-item active">Getting Started</a>
+      <a href="#architecture" class="toc-item">System Architecture</a>
+      <a href="#rest-api" class="toc-item">REST API Reference</a>
+      <a href="#persistence" class="toc-item">Git Persistence RFC</a>
+      <a href="#roadmap" class="toc-item">Product Timeline</a>
+      <a href="#deployment" class="toc-item">Deployment</a>
+      <a href="#contributing" class="toc-item">Contributing Guide</a>
+    </aside>
+
+  </div>
+
+  <!-- Minimal Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom-left">
+        <span>Built with <strong>Go • React • TypeScript • Git</strong></span>
+        <span>•</span>
+        <span>Version <strong>v0.1.0-alpha</strong> (<em>Experimental</em>)</span>
+        <span>•</span>
+        <span>License <strong>MIT</strong></span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/barissalihbabacan/Chorus" target="_blank">GitHub</a>
+        <a href="https://joinchorus.app" target="_blank">joinchorus.app</a>
+        <a href="https://docs.joinchorus.app">docs.joinchorus.app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Search Index Data with Categories & Highlight Support
+    const SEARCH_INDEX = [
+      { title: "Getting Started", desc: "Quickstart guide, system requirements, and local setup", category: "Guide", link: "#getting-started" },
+      { title: "System Architecture", desc: "8-layer component flow and Clean Architecture responsibilities", category: "Architecture", link: "#architecture" },
+      { title: "REST API Reference", desc: "HTTP endpoints reference & specifications", category: "REST API", link: "#rest-api" },
+      { title: "GET /healthz", desc: "Health check probe endpoint", category: "REST API", link: "#api-healthz" },
+      { title: "POST /api/v0.1/identities", desc: "Register session identity and conversation name", category: "REST API", link: "#api-identities" },
+      { title: "GET /api/v0.1/threads", desc: "Retrieve threads list", category: "REST API", link: "#api-threads" },
+      { title: "POST /api/v0.1/threads", desc: "Create thread with thread-scoped identity", category: "REST API", link: "#api-create-thread" },
+      { title: "POST /api/v0.1/threads/{id}/messages", desc: "Append reply message to thread", category: "REST API", link: "#api-messages" },
+      { title: "POST /api/v0.1/threads/{id}/messages/{msg_id}/translate", desc: "On-demand message translation", category: "REST API", link: "#api-translate" },
+      { title: "POST /api/v0.1/moderation/reports/{id}/action", desc: "Submit moderation report action", category: "REST API", link: "#api-moderation" },
+      { title: "Git Persistence Engine RFC", desc: "Current implementation, known limitations, ADR-001", category: "Deep Dive", link: "#persistence" },
+      { title: "Deployment & Environment Variables", desc: "PORT, DATA_DIR, ENV, systemd and Docker setup", category: "Guide", link: "#deployment" },
+      { title: "Engineering Timeline Roadmap", desc: "Milestones timeline: v0.1 Alpha to v1.0 Production", category: "Roadmap", link: "#roadmap" },
+      { title: "Contributing Guide", desc: "Forking workflow, branch standards, commit conventions", category: "Development", link: "#contributing" }
+    ];
+
+    // Command Palette Elements & Handlers
+    const searchTrigger = document.getElementById('search-trigger');
+    const searchModal = document.getElementById('search-modal');
+    const modalInput = document.getElementById('modal-search-input');
+    const searchResults = document.getElementById('search-results');
+    let selectedIndex = 0;
+    let filteredItems = [];
+
+    function openSearchModal() {
+      searchModal.classList.add('show');
+      modalInput.value = '';
+      renderSearchResults('');
+      setTimeout(() => modalInput.focus(), 50);
+    }
+
+    function closeSearchModal() {
+      searchModal.classList.remove('show');
+    }
+
+    function highlightText(text, query) {
+      if (!query) return text;
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<span class="search-highlight">$1</span>');
+    }
+
+    function renderSearchResults(query) {
+      const q = query.toLowerCase().trim();
+      filteredItems = SEARCH_INDEX.filter(item => 
+        item.title.toLowerCase().includes(q) || 
+        item.desc.toLowerCase().includes(q) || 
+        item.category.toLowerCase().includes(q)
+      );
+
+      selectedIndex = 0;
+      if (filteredItems.length === 0) {
+        searchResults.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No matching documentation items found.</div>';
+        return;
+      }
+
+      searchResults.innerHTML = filteredItems.map((item, idx) => `
+        <a href="${item.link}" class="search-result-item ${idx === 0 ? 'selected' : ''}" onclick="closeSearchModal()">
+          <div>
+            <div class="search-result-title">${highlightText(item.title, q)}</div>
+            <div class="search-result-desc">${highlightText(item.desc, q)}</div>
+          </div>
+          <span class="search-result-category">${item.category}</span>
+        </a>
+      `).join('');
+    }
+
+    searchTrigger.addEventListener('click', openSearchModal);
+
+    modalInput.addEventListener('input', (e) => {
+      renderSearchResults(e.target.value);
+    });
+
+    modalInput.addEventListener('keydown', (e) => {
+      const items = searchResults.querySelectorAll('.search-result-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (items.length > 0) {
+          items[selectedIndex].classList.remove('selected');
+          selectedIndex = (selectedIndex + 1) % items.length;
+          items[selectedIndex].classList.add('selected');
+          items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (items.length > 0) {
+          items[selectedIndex].classList.remove('selected');
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          items[selectedIndex].classList.add('selected');
+          items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredItems[selectedIndex]) {
+          window.location.href = filteredItems[selectedIndex].link;
+          closeSearchModal();
+        }
+      } else if (e.key === 'Escape') {
+        closeSearchModal();
+      }
+    });
+
+    // Keyboard Shortcuts `/` and `Cmd+K` / `Ctrl+K`
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearchModal();
+      } else if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        openSearchModal();
+      } else if (e.key === 'Escape' && searchModal.classList.contains('show')) {
+        closeSearchModal();
+      }
+    });
+
+    // Mobile Search Placeholder Fix
+    function updateSearchPlaceholder() {
+      const searchInput = document.querySelector('.search-input');
+      if (searchInput) {
+        if (window.innerWidth <= 768) {
+          searchInput.setAttribute('placeholder', '');
+        } else {
+          searchInput.setAttribute('placeholder', 'Search docs (Press / or Ctrl+K)');
+        }
+      }
+    }
+    updateSearchPlaceholder();
+    window.addEventListener('resize', updateSearchPlaceholder);
+
+    searchModal.addEventListener('click', (e) => {
+      if (e.target === searchModal) closeSearchModal();
+    });
+
+    // Copy Code Buttons Handler
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const codeText = this.getAttribute('data-code');
+        if (codeText) {
+          navigator.clipboard.writeText(codeText).then(() => {
+            const originalText = this.innerText;
+            this.innerText = 'Copied!';
+            this.classList.add('copied');
+            setTimeout(() => {
+              this.innerText = originalText;
+              this.classList.remove('copied');
+            }, 2000);
+          });
+        }
+      });
+    });
+
+    // Copy URL Buttons Handler
+    document.querySelectorAll('.copy-url-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const urlText = this.getAttribute('data-url');
+        if (urlText) {
+          navigator.clipboard.writeText(urlText).then(() => {
+            const originalText = this.innerText;
+            this.innerText = 'Copied!';
+            setTimeout(() => {
+              this.innerText = originalText;
+            }, 2000);
+          });
+        }
+      });
+    });
+
+    // Mobile Drawer Navigation & FAB Handlers
+    const mobileDrawerBtn = document.getElementById('mobile-drawer-btn');
+    const sidebarDrawer = document.getElementById('sidebar-drawer');
+    const mobileTocFab = document.getElementById('mobile-toc-fab');
+
+    if (mobileDrawerBtn && sidebarDrawer) {
+      mobileDrawerBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        sidebarDrawer.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!sidebarDrawer.contains(e.target) && e.target !== mobileDrawerBtn) {
+          sidebarDrawer.classList.remove('open');
+        }
+      });
+    }
+
+    if (mobileTocFab) {
+      mobileTocFab.addEventListener('click', function() {
+        const toc = document.querySelector('.toc-sidebar');
+        if (toc) {
+          const isVisible = toc.style.display === 'block';
+          toc.style.display = isVisible ? 'none' : 'block';
+          toc.style.position = 'fixed';
+          toc.style.bottom = '4.5rem';
+          toc.style.right = '1.5rem';
+          toc.style.zIndex = '300';
+          toc.style.backgroundColor = 'var(--bg-surface)';
+          toc.style.boxShadow = '0 8px 32px rgba(0,0,0,0.6)';
+          toc.style.borderRadius = '12px';
+          toc.style.height = 'auto';
+          toc.style.maxHeight = '60vh';
+        }
+      });
+    }
+
+    // Version Switcher Handler
+    (function() {
+      const versionBtn = document.getElementById('version-btn');
+      const versionMenu = document.getElementById('version-menu');
+      const selectedVersionText = document.getElementById('selected-version');
+
+      if (versionBtn && versionMenu) {
+        versionBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isOpen = versionMenu.classList.toggle('show');
+          versionBtn.setAttribute('aria-expanded', isOpen);
+        });
+
+        document.addEventListener('click', function() {
+          versionMenu.classList.remove('show');
+          versionBtn.setAttribute('aria-expanded', 'false');
+        });
+
+        document.querySelectorAll('.version-option').forEach(item => {
+          item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const ver = this.getAttribute('data-version');
+            if (selectedVersionText) selectedVersionText.innerText = ver;
+            document.querySelectorAll('.version-option').forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            versionMenu.classList.remove('show');
+            versionBtn.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+    })();
+
+    // Scroll Spy for Sidebar & TOC Active State
+    window.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute('id');
+            document.querySelectorAll('.nav-item, .toc-item').forEach(link => {
+              if (link.getAttribute('href') === `#${id}`) {
+                link.classList.add('active');
+              } else {
+                link.classList.remove('active');
+              }
+            });
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+
+      document.querySelectorAll('.doc-section').forEach(section => observer.observe(section));
+    });
+  </script>
+
+</body>
+</html>

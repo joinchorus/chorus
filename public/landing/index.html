@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chorus — Identity belongs to the conversation.</title>
+  <meta name="description" content="Chorus is a calm, anonymous discussion platform where identity belongs to the conversation, not the person. No accounts. No profiles. No algorithms.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="canonical" href="https://joinchorus.app/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://joinchorus.app/">
+  <meta property="og:title" content="Chorus — Identity belongs to the conversation.">
+  <meta property="og:description" content="Chorus is a calm, anonymous discussion platform where identity belongs to the conversation, not the person. No accounts. No profiles. No algorithms.">
+  <meta property="og:site_name" content="Chorus">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://joinchorus.app/">
+  <meta name="twitter:title" content="Chorus — Identity belongs to the conversation.">
+  <meta name="twitter:description" content="Chorus is a calm, anonymous discussion platform where identity belongs to the conversation, not the person. No accounts. No profiles. No algorithms.">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://joinchorus.app/#organization",
+        "name": "Chorus",
+        "url": "https://joinchorus.app",
+        "logo": "https://joinchorus.app/favicon.svg",
+        "sameAs": [
+          "https://github.com/joinchorus"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://joinchorus.app/#website",
+        "url": "https://joinchorus.app",
+        "name": "Chorus",
+        "description": "An anonymous discussion platform where identity belongs to the conversation.",
+        "publisher": {
+          "@id": "https://joinchorus.app/#organization"
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://joinchorus.app/#application",
+        "name": "Chorus",
+        "description": "An anonymous discussion platform where identity belongs to the conversation.",
+        "applicationCategory": "DiscussionApplication",
+        "operatingSystem": "Web",
+        "license": "https://opensource.org/licenses/MIT",
+        "url": "https://joinchorus.app",
+        "author": {
+          "@id": "https://joinchorus.app/#organization"
+        }
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root {
+      --bg-main: #ffffff;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f9fafb;
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #9ca3af;
+      --border-subtle: #f3f4f6;
+      --border-default: #eaecf0;
+      --bubble-bg: #f3f4f6;
+      --bubble-border: #eaecf0;
+      --bubble-fg: #111827;
+      --bubble-fg-line: #ffffff;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    :root[data-theme="dark"], html[data-theme="dark"] {
+      --bg-main: #121417;
+      --bg-surface: #1a1d21;
+      --bg-subtle: #22262c;
+      --text-primary: #e6edf3;
+      --text-secondary: #9198a1;
+      --text-muted: #6e7681;
+      --border-subtle: #21262d;
+      --border-default: #30363d;
+      --bubble-bg: #22262c;
+      --bubble-border: #30363d;
+      --bubble-fg: #e6edf3;
+      --bubble-fg-line: #121417;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg-main: #121417;
+        --bg-surface: #1a1d21;
+        --bg-subtle: #22262c;
+        --text-primary: #e6edf3;
+        --text-secondary: #9198a1;
+        --text-muted: #6e7681;
+        --border-subtle: #21262d;
+        --border-default: #30363d;
+        --bubble-bg: #22262c;
+        --bubble-border: #30363d;
+        --bubble-fg: #e6edf3;
+        --bubble-fg-line: #121417;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-main);
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .container {
+      width: 100%;
+      padding: 0 2.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .container { padding: 0 1.25rem; }
+    }
+
+    /* Editorial Header */
+    header {
+      border-bottom: 1px solid var(--border-default);
+      padding: 1.5rem 0;
+      background-color: var(--bg-main);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      text-decoration: none;
+      letter-spacing: -0.04em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover { color: var(--text-primary); }
+
+    .theme-toggle-btn {
+      background: transparent;
+      border: 1px solid var(--border-default);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background-color: var(--bg-subtle);
+      color: var(--text-primary);
+      border-color: var(--border-default);
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+      background: transparent;
+      border: 1px solid var(--border-default);
+      color: var(--text-primary);
+      padding: 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-menu-toggle {
+        display: inline-flex;
+      }
+
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--bg-surface);
+        border-bottom: 1px solid var(--border-default);
+        padding: 1.5rem 1.25rem;
+        gap: 1.25rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      }
+
+      .nav-links.active {
+        display: flex;
+      }
+
+      .nav-links a {
+        font-size: 1rem;
+        padding: 0.5rem 0;
+      }
+
+      .btn-cta {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    .btn-cta {
+      background-color: var(--text-primary);
+      color: var(--bg-main) !important;
+      padding: 0.625rem 1.25rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-cta:hover { opacity: 0.9; text-decoration: none; }
+
+    main { flex: 1; }
+
+    /* Manifesto Section Base */
+    .section {
+      padding: 7rem 0;
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    @media (max-width: 640px) {
+      .section { padding: 4.5rem 0; }
+    }
+
+    .section-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      display: block;
+    }
+
+    .manifesto-title {
+      font-size: 3.75rem;
+      font-weight: 800;
+      letter-spacing: -0.045em;
+      line-height: 1.1;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .manifesto-title { font-size: 2.5rem; }
+    }
+
+    .manifesto-subtitle {
+      font-size: 1.375rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 2.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .manifesto-subtitle { font-size: 1.125rem; }
+    }
+
+    /* Hero Section */
+    .hero-section {
+      padding: 8rem 0 7rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .bubbles-animation-box {
+      margin-bottom: 3rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .bubbles-svg {
+      overflow: visible;
+    }
+
+    .bubble-bg-rect {
+      fill: var(--bubble-bg);
+      stroke: var(--bubble-border);
+    }
+
+    .bubble-fg-rect {
+      fill: var(--bubble-fg);
+    }
+
+    .bubble-fg-line {
+      stroke: var(--bubble-fg-line);
+    }
+
+    .bubble-bg {
+      animation: floatSlow 4s ease-in-out infinite alternate;
+    }
+
+    .bubble-fg {
+      animation: floatSlight 4s ease-in-out infinite alternate-reverse;
+    }
+
+    @keyframes floatSlow {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+
+    @keyframes floatSlight {
+      from { transform: translateY(0); }
+      to { transform: translateY(5px); }
+    }
+
+    .hero-title {
+      font-size: 4.25rem;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      line-height: 1.08;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .hero-title { font-size: 2.75rem; }
+    }
+
+    .hero-quote {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 3rem;
+    }
+
+    /* Problem Section */
+    .problem-tags {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin: 2.5rem 0;
+    }
+
+    .tag-item {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: line-through;
+      text-decoration-color: #ef4444;
+    }
+
+    .statement-box {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      padding: 2.5rem 3rem;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 640px) {
+      .statement-box { padding: 1.5rem; }
+    }
+
+    .statement-text {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    /* Lifecycle Diagram (Difference) */
+    .lifecycle-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin: 3.5rem 0;
+      padding: 3rem;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+    }
+
+    .lifecycle-node {
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 0.75rem 2rem;
+      border-radius: 30px;
+      border: 1px solid var(--border-default);
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .lifecycle-node.active {
+      background-color: var(--text-primary);
+      color: var(--bg-main);
+      border-color: var(--text-primary);
+    }
+
+    .lifecycle-arrow {
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    /* 4 Steps Section */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .step-card {
+      border: 1px solid var(--border-default);
+      border-radius: 10px;
+      padding: 2rem;
+      background-color: var(--bg-surface);
+    }
+
+    .step-number {
+      font-size: 0.875rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .step-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.9375rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Core Principles Grid */
+    .principles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .principle-card {
+      border: 1px solid var(--border-default);
+      border-radius: 10px;
+      padding: 2.25rem;
+      background-color: var(--bg-surface);
+    }
+
+    .principle-card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+
+    .principle-card p {
+      font-size: 0.9375rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Technology Section */
+    .tech-box {
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+      padding: 3rem;
+      background-color: var(--bg-subtle);
+      margin-top: 2rem;
+    }
+
+    .tech-headline {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    /* Final CTA Section */
+    .final-cta-section {
+      text-align: center;
+      padding: 9rem 0;
+      border-bottom: none;
+    }
+
+    .final-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--text-primary);
+      color: var(--bg-main) !important;
+      padding: 1rem 2.5rem;
+      border-radius: 8px;
+      font-size: 1.125rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background-color 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    }
+
+    .final-cta-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-default);
+      padding: 3rem 0;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+    .footer-links a:hover { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container nav-inner">
+      <a href="https://joinchorus.app" class="logo">Chorus</a>
+      
+      <button id="mobile-menu-toggle" class="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      <nav class="nav-links">
+        <a href="#problem">Manifesto</a>
+        <a href="#difference">The Difference</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="https://docs.joinchorus.app" target="_blank">Documentation</a>
+        <a href="https://github.com/joinchorus/chorus" target="_blank">GitHub</a>
+        
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light or dark theme" title="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+
+        <a id="nav-cta" href="https://chat.joinchorus.app" class="btn-cta">Launch App</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. Hero Section -->
+    <section class="container hero-section">
+      <div class="bubbles-animation-box">
+        <svg width="240" height="140" viewBox="0 0 240 140" fill="none" class="bubbles-svg">
+          <g class="bubble-bg">
+            <rect x="20" y="15" width="140" height="52" rx="26" class="bubble-bg-rect" stroke-width="1.5" />
+            <circle cx="60" cy="41" r="4" fill="#9ca3af" />
+            <circle cx="82" cy="41" r="4" fill="#9ca3af" />
+            <circle cx="104" cy="41" r="4" fill="#9ca3af" />
+          </g>
+          <g class="bubble-fg">
+            <rect x="80" y="70" width="140" height="52" rx="26" class="bubble-fg-rect" />
+            <line x1="112" y1="96" x2="188" y2="96" class="bubble-fg-line" stroke-width="3" stroke-linecap="round" />
+          </g>
+        </svg>
+      </div>
+
+      <h1 class="hero-title">Identity belongs to the conversation.<br>Not the person.</h1>
+      <p class="hero-quote">Conversations matter more than identities. No accounts. No profiles. No algorithms.</p>
+      
+      <div>
+        <a id="hero-cta" href="https://chat.joinchorus.app" class="btn-cta" style="font-size: 1.125rem; padding: 0.875rem 2rem;">Start Conversation &rarr;</a>
+      </div>
+    </section>
+
+    <!-- 2. The Problem -->
+    <section id="problem" class="section">
+      <div class="container">
+        <span class="section-label">The Problem</span>
+        <h2 class="manifesto-title">Traditional social platforms do not care about what is being said.<br>They care about who is saying it.</h2>
+        
+        <div class="problem-tags">
+          <span class="tag-item">Followers</span>
+          <span class="tag-item">Profiles</span>
+          <span class="tag-item">Likes</span>
+          <span class="tag-item">Algorithms</span>
+          <span class="tag-item">Outrage</span>
+        </div>
+
+        <p class="manifesto-subtitle">
+          Modern platforms optimize for persistent identity to capture attention, cultivate reputation anxiety, and maximize engagement loops.
+        </p>
+
+        <div class="statement-box">
+          <p class="statement-text">
+            Chorus intentionally rejects these concepts. There are no profiles to build, no follower counts to farm, and no algorithms deciding what you should think.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. The Difference -->
+    <section id="difference" class="section">
+      <div class="container">
+        <span class="section-label">The Difference</span>
+        <h2 class="manifesto-title">Every conversation creates a new temporary identity.</h2>
+        <p class="manifesto-subtitle">When the conversation ends, that name disappears too.</p>
+
+        <div class="lifecycle-diagram">
+          <div class="lifecycle-node active">Ash</div>
+          <div class="lifecycle-arrow">&rarr;</div>
+          <div class="lifecycle-node">River</div>
+          <div class="lifecycle-arrow">&rarr;</div>
+          <div class="lifecycle-node">Echo</div>
+          <div class="lifecycle-arrow">&rarr;</div>
+          <div class="lifecycle-node">Stone</div>
+        </div>
+
+        <p class="manifesto-subtitle" style="text-align: center; margin-bottom: 0;">
+          You leave no persistent user trace across discussions. Every contribution stands strictly on its own merits.
+        </p>
+      </div>
+    </section>
+
+    <!-- 4. How Chorus Works -->
+    <section id="how-it-works" class="section">
+      <div class="container">
+        <span class="section-label">How Chorus Works</span>
+        <h2 class="manifesto-title">Four steps to a calm discussion.</h2>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <span class="step-number">01</span>
+            <h3 class="step-title">Start a conversation.</h3>
+            <p class="step-desc">Open a new discussion thread or join an existing ongoing topic.</p>
+          </div>
+          <div class="step-card">
+            <span class="step-number">02</span>
+            <h3 class="step-title">Receive a conversation name.</h3>
+            <p class="step-desc">Automatically get an ephemeral, thread-scoped temporary identity (e.g. Ash, River).</p>
+          </div>
+          <div class="step-card">
+            <span class="step-number">03</span>
+            <h3 class="step-title">Talk.</h3>
+            <p class="step-desc">Focus purely on the dialogue without reputation baggage or follower clout.</p>
+          </div>
+          <div class="step-card">
+            <span class="step-number">04</span>
+            <h3 class="step-title">Leave.</h3>
+            <p class="step-desc">When you step away, your temporary name disappears forever.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Core Principles -->
+    <section class="section">
+      <div class="container">
+        <span class="section-label">Core Principles</span>
+        <h2 class="manifesto-title">Designed for dialogue, not engagement.</h2>
+
+        <div class="principles-grid">
+          <div class="principle-card">
+            <h3>Thread-Scoped Identity</h3>
+            <p>Your temporary name exists only within the bounds of a single thread. You cannot be tracked across different discussions.</p>
+          </div>
+          <div class="principle-card">
+            <h3>No Popularity Metrics</h3>
+            <p>Zero upvotes, likes, or follower counts. Content is evaluated by what is expressed, not who expressed it.</p>
+          </div>
+          <div class="principle-card">
+            <h3>Privacy by Design</h3>
+            <p>IP addresses are evaluated at the edge for optional geolocation and are <strong>never written to disk</strong>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Technology -->
+    <section class="section">
+      <div class="container">
+        <span class="section-label">Engineering</span>
+        <h2 class="manifesto-title">How Chorus works under the hood.</h2>
+
+        <div class="tech-box">
+          <h3 class="tech-headline">Native Git Append-Only Storage</h3>
+          <p class="manifesto-subtitle" style="margin-bottom: 0;">
+            Identity is the product experience. Underneath, Chorus persists every discussion thread and message as native Git commits—making the platform transparent, auditable, and open-source without proprietary vendor lock-in.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Final CTA -->
+    <section class="section final-cta-section">
+      <div class="container">
+        <h2 class="manifesto-title" style="margin-bottom: 2rem;">Ready for conversations that stand on their own?</h2>
+        <a id="footer-cta" href="https://chat.joinchorus.app" class="final-cta-btn">Enter Chorus &rarr;</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-inner">
+      <div><strong>Chorus</strong> &mdash; Identity belongs to the conversation.</div>
+      <div class="footer-links">
+        <a href="https://joinchorus.app">joinchorus.app</a>
+        <a href="https://chat.joinchorus.app">chat.joinchorus.app</a>
+        <a href="https://docs.joinchorus.app">docs.joinchorus.app</a>
+        <a href="https://github.com/barissalihbabacan/Chorus" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Theme Toggle Logic
+    (function() {
+      const toggleBtn = document.getElementById('theme-toggle');
+      let currentTheme = localStorage.getItem('chorus_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+      function updateThemeUI(theme) {
+        if (theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          toggleBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+          toggleBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+        }
+      }
+
+      updateThemeUI(currentTheme);
+
+      toggleBtn.addEventListener('click', function() {
+        currentTheme = (currentTheme === 'light') ? 'dark' : 'light';
+        localStorage.setItem('chorus_theme', currentTheme);
+        updateThemeUI(currentTheme);
+      });
+
+      // Mobile Menu Toggle
+      const mobileToggle = document.getElementById('mobile-menu-toggle');
+      const navLinks = document.querySelector('.nav-links');
+      if (mobileToggle && navLinks) {
+        mobileToggle.addEventListener('click', function() {
+          navLinks.classList.toggle('active');
+          const isOpen = navLinks.classList.contains('active');
+          mobileToggle.setAttribute('aria-expanded', isOpen);
+        });
+        navLinks.querySelectorAll('a').forEach(function(link) {
+          link.addEventListener('click', function() {
+            navLinks.classList.remove('active');
+          });
+        });
+      }
+
+      // Adapt CTA links dynamically when testing locally on custom ports/IPs
+      const port = window.location.port ? ':' + window.location.port : '';
+      const hostname = window.location.hostname;
+      if (hostname === 'joinchorus.app' || hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.') || hostname.includes('100.')) {
+        const protocol = window.location.protocol;
+        const chatUrl = (hostname === 'joinchorus.app') ? protocol + '//chat.joinchorus.app' + port : protocol + '//' + hostname + port + '/';
+        const navCta = document.getElementById('nav-cta');
+        const heroCta = document.getElementById('hero-cta');
+        const footerCta = document.getElementById('footer-cta');
+        if (navCta && hostname === 'joinchorus.app') navCta.href = chatUrl;
+        if (heroCta && hostname === 'joinchorus.app') heroCta.href = chatUrl;
+        if (footerCta && hostname === 'joinchorus.app') footerCta.href = chatUrl;
+      }
+    })();
+  </script>
+</body>
+</html>

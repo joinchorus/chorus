@@ -142,6 +142,15 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		}
 
 		if host == "joinchorus.app" || host == "www.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/landing") {
+			relSubPath := strings.TrimPrefix(r.URL.Path, "/landing")
+			if relSubPath == "" || relSubPath == "/" {
+				relSubPath = "index.html"
+			}
+			landingAsset := findFile(filepath.Join("public", "landing", filepath.Clean(relSubPath)))
+			if info, err := os.Stat(landingAsset); err == nil && !info.IsDir() {
+				serveFile(landingAsset)
+				return
+			}
 			landingPath := findFile(filepath.Join("public", "landing", "index.html"))
 			if _, err := os.Stat(landingPath); err == nil {
 				serveFile(landingPath)
@@ -150,6 +159,15 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		}
 
 		if host == "docs.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/docs") {
+			relSubPath := strings.TrimPrefix(r.URL.Path, "/docs")
+			if relSubPath == "" || relSubPath == "/" {
+				relSubPath = "index.html"
+			}
+			docsAsset := findFile(filepath.Join("public", "docs", filepath.Clean(relSubPath)))
+			if info, err := os.Stat(docsAsset); err == nil && !info.IsDir() {
+				serveFile(docsAsset)
+				return
+			}
 			docsPath := findFile(filepath.Join("public", "docs", "index.html"))
 			if _, err := os.Stat(docsPath); err == nil {
 				serveFile(docsPath)
