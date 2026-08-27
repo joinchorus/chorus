@@ -2,7 +2,9 @@ package handler
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"net/http"
+	"time"
 
 	"chorus/internal/domain"
 	"chorus/internal/http/httputil"
@@ -12,19 +14,24 @@ import (
 
 // ModerationHandler handles moderation queue HTTP requests.
 type ModerationHandler struct {
-	modService *moderation.Service
-	adminToken string
+	modService     *moderation.Service
+	sessionManager *middleware.SessionManager
+	adminToken     string
 }
 
 // NewModerationHandler constructs a concrete ModerationHandler instance.
-func NewModerationHandler(modService *moderation.Service, adminToken ...string) *ModerationHandler {
+func NewModerationHandler(modService *moderation.Service, sessionManager *middleware.SessionManager, adminToken ...string) *ModerationHandler {
 	tok := ""
 	if len(adminToken) > 0 {
 		tok = adminToken[0]
 	}
+	if sessionManager == nil {
+		sessionManager = middleware.NewSessionManager()
+	}
 	return &ModerationHandler{
-		modService: modService,
-		adminToken: tok,
+		modService:     modService,
+		sessionManager: sessionManager,
+		adminToken:     tok,
 	}
 }
 
@@ -32,7 +39,7 @@ type LoginInput struct {
 	Token string `json:"token"`
 }
 
-// Login authenticates a moderator and sets an HttpOnly session cookie.
+// Login authenticates a moderator and sets an HttpOnly session cookie with an opaque random session ID.
 func (h *ModerationHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var input LoginInput
 	if err := httputil.DecodeJSON(w, r, &input); err != nil {
@@ -45,12 +52,20 @@ func (h *ModerationHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set HttpOnly, SameSite=Lax session cookie
+	// Generate opaque cryptographically random session identifier (TTL: 7 days)
+	sessionTTL := 86400 * 7 * time.Second
+	sessionID, err := h.sessionManager.CreateSession(sessionTTL)
+	if err != nil {
+		httputil.WriteError(w, fmt.Errorf("%w: failed creating session", domain.ErrInternal))
+		return
+	}
+
+	// Set HttpOnly, SameSite=Lax session cookie carrying ONLY the opaque session ID (NEVER the raw admin token)
 	http.SetCookie(w, &http.Cookie{
 		Name:     middleware.AdminCookieName,
-		Value:    h.adminToken,
+		Value:    sessionID,
 		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
+		MaxAge:   int(sessionTTL.Seconds()),
 		HttpOnly: true,
 		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
 		SameSite: http.SameSiteLaxMode,
@@ -59,8 +74,14 @@ func (h *ModerationHandler) Login(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, httputil.Envelope{"status": "authenticated"})
 }
 
-// Logout clears the moderator HttpOnly session cookie.
+// Logout revokes the session on the server and clears the moderator HttpOnly session cookie.
 func (h *ModerationHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(middleware.AdminCookieName); err == nil && cookie.Value != "" {
+		if h.sessionManager != nil {
+			h.sessionManager.RevokeSession(cookie.Value)
+		}
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     middleware.AdminCookieName,
 		Value:    "",

@@ -17,6 +17,7 @@ import (
 	"chorus/internal/gitstore"
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
+	"chorus/internal/http/middleware"
 	"chorus/internal/idgen"
 	"chorus/internal/identity"
 	"chorus/internal/moderation"
@@ -60,9 +61,10 @@ func main() {
 	googleProvider := translation.NewGoogleProvider(googleApiKey, nil)
 	transService := translation.NewService(googleProvider, cfg.DataDir)
 
-	// Reporting & Moderation services
+	// Reporting & Moderation services & Session Manager
 	reportingService := reporting.NewService(gitStore, idGen, time.Now)
 	moderationService := moderation.NewService(gitStore, threadService, idGen, time.Now)
+	sessionManager := middleware.NewSessionManager()
 
 	// 4. HTTP Handlers
 	healthH := handler.NewHealthHandler()
@@ -70,18 +72,19 @@ func main() {
 	threadH := handler.NewThreadHandler(threadService, geoService)
 	transH := handler.NewTranslationHandler(transService, threadService)
 	reportH := handler.NewReportHandler(reportingService, threadService)
-	modH := handler.NewModerationHandler(moderationService, cfg.AdminToken)
+	modH := handler.NewModerationHandler(moderationService, sessionManager, cfg.AdminToken)
 
 	// 5. Router
 	router := chttp.NewRouter(chttp.RouterConfig{
-		Health:      healthH,
-		Identity:    identityH,
-		Thread:      threadH,
-		Translation: transH,
-		Report:      reportH,
-		Moderation:  modH,
-		AdminToken:  cfg.AdminToken,
-		StaticDir:   "web/dist",
+		Health:         healthH,
+		Identity:       identityH,
+		Thread:         threadH,
+		Translation:    transH,
+		Report:         reportH,
+		Moderation:     modH,
+		SessionManager: sessionManager,
+		AdminToken:     cfg.AdminToken,
+		StaticDir:      "web/dist",
 	})
 
 

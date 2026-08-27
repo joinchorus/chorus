@@ -12,15 +12,16 @@ import (
 
 // RouterConfig contains all handlers needed to register API routes and static SPA asset directory.
 type RouterConfig struct {
-	Health      *handler.HealthHandler
-	Identity    *handler.IdentityHandler
-	Board       *handler.BoardHandler
-	Thread      *handler.ThreadHandler
-	Translation *handler.TranslationHandler
-	Report      *handler.ReportHandler
-	Moderation  *handler.ModerationHandler
-	AdminToken  string
-	StaticDir   string
+	Health         *handler.HealthHandler
+	Identity       *handler.IdentityHandler
+	Board          *handler.BoardHandler
+	Thread         *handler.ThreadHandler
+	Translation    *handler.TranslationHandler
+	Report         *handler.ReportHandler
+	Moderation     *handler.ModerationHandler
+	SessionManager *middleware.SessionManager
+	AdminToken     string
+	StaticDir      string
 }
 
 // NewRouter constructs and configures an http.Handler with all routes, SPA fallback, & global middlewares.
@@ -30,22 +31,29 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	if cfg.Board == nil {
 		cfg.Board = handler.NewBoardHandler()
 	}
+	if cfg.SessionManager == nil {
+		cfg.SessionManager = middleware.NewSessionManager()
+	}
 
 	// Health endpoint
 	mux.HandleFunc("GET /healthz", cfg.Health.Check)
 
-	// Rate limiters for write endpoints (Token Bucket IP Rate Limiting)
-	threadLimiter := middleware.NewIPRateLimiter(0.1, 5) // ~6 threads/min burst 5
-	msgLimiter := middleware.NewIPRateLimiter(0.5, 10)   // ~30 msgs/min burst 10
-	reportLimiter := middleware.NewIPRateLimiter(0.2, 5) // ~12 reports/min burst 5
+	// Rate limiters for public write & cost-sensitive endpoints (Token Bucket IP Rate Limiting)
+	threadLimiter := middleware.NewIPRateLimiter(0.1, 5)   // ~6 threads/min burst 5
+	msgLimiter := middleware.NewIPRateLimiter(0.5, 10)     // ~30 msgs/min burst 10
+	reportLimiter := middleware.NewIPRateLimiter(0.2, 5)   // ~12 reports/min burst 5
+	identityLimiter := middleware.NewIPRateLimiter(0.2, 5) // ~12 identities/min burst 5 (abuse prevention against disk exhaustion)
+	transLimiter := middleware.NewIPRateLimiter(0.2, 5)    // ~12 translations/min burst 5 (cost & quota protection)
 
 	threadRateGuard := middleware.RateLimit(threadLimiter)
 	msgRateGuard := middleware.RateLimit(msgLimiter)
 	reportRateGuard := middleware.RateLimit(reportLimiter)
+	identityRateGuard := middleware.RateLimit(identityLimiter)
+	transRateGuard := middleware.RateLimit(transLimiter)
 
 	// Helper to register API routes under a version prefix (/api/v0.1 and /api/v1)
 	registerRoutes := func(prefix string) {
-		mux.HandleFunc("POST "+prefix+"/identities", cfg.Identity.Create)
+		mux.Handle("POST "+prefix+"/identities", identityRateGuard(http.HandlerFunc(cfg.Identity.Create)))
 		mux.HandleFunc("GET "+prefix+"/identities/{id}", cfg.Identity.GetByID)
 
 		mux.HandleFunc("GET "+prefix+"/boards", cfg.Board.ListBoards)
@@ -58,7 +66,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("GET "+prefix+"/threads/{id}/messages", cfg.Thread.ListMessages)
 
 		if cfg.Translation != nil {
-			mux.HandleFunc("POST "+prefix+"/threads/{id}/messages/{msg_id}/translate", cfg.Translation.TranslateMessage)
+			mux.Handle("POST "+prefix+"/threads/{id}/messages/{msg_id}/translate", transRateGuard(http.HandlerFunc(cfg.Translation.TranslateMessage)))
 		}
 
 		if cfg.Report != nil {
@@ -66,7 +74,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		}
 
 		if cfg.Moderation != nil {
-			authGuard := middleware.RequireAdminAuth(cfg.AdminToken)
+			authGuard := middleware.RequireAdminAuth(cfg.AdminToken, cfg.SessionManager)
 
 			// Auth endpoints for HttpOnly Cookie session management
 			mux.HandleFunc("POST "+prefix+"/moderation/login", cfg.Moderation.Login)

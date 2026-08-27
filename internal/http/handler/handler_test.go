@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"chorus/internal/conversationname"
+	"chorus/internal/gitstore"
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
-	"chorus/internal/gitstore"
+	"chorus/internal/http/middleware"
 	"chorus/internal/idgen"
 	"chorus/internal/identity"
 	"chorus/internal/moderation"
@@ -152,15 +153,17 @@ func TestHTTP_ModerationAuthorization(t *testing.T) {
 	identityService := identity.NewService(identityRepo, idGen, nameGen, time.Now)
 	threadService := thread.NewService(threadRepo, idGen, nameGen, time.Now)
 	modService := moderation.NewService(gitStore, threadService, idGen, time.Now)
+	sessionManager := middleware.NewSessionManager()
 
 	const secretToken = "super-secret-admin-key"
 
 	router := chttp.NewRouter(chttp.RouterConfig{
-		Health:      handler.NewHealthHandler(),
-		Identity:    handler.NewIdentityHandler(identityService),
-		Thread:      handler.NewThreadHandler(threadService, nil),
-		Moderation:  handler.NewModerationHandler(modService),
-		AdminToken:  secretToken,
+		Health:         handler.NewHealthHandler(),
+		Identity:       handler.NewIdentityHandler(identityService),
+		Thread:         handler.NewThreadHandler(threadService, nil),
+		Moderation:     handler.NewModerationHandler(modService, sessionManager, secretToken),
+		SessionManager: sessionManager,
+		AdminToken:     secretToken,
 	})
 
 	// 1. Unauthenticated Request -> 401 Unauthorized
@@ -182,7 +185,7 @@ func TestHTTP_ModerationAuthorization(t *testing.T) {
 		t.Errorf("expected 403 Forbidden for invalid moderation token, got %d", rec.Code)
 	}
 
-	// 3. Valid Token -> 200 OK
+	// 3. Valid Token via Header -> 200 OK
 	req = httptest.NewRequest("GET", "/api/v0.1/moderation/reports", nil)
 	req.Header.Set("Authorization", "Bearer "+secretToken)
 	rec = httptest.NewRecorder()
@@ -190,5 +193,93 @@ func TestHTTP_ModerationAuthorization(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200 OK for authorized moderation request, got %d", rec.Code)
+	}
+
+	// 4. Test Login -> Opaque Session Cookie Creation (NEVER master secret)
+	loginBody, _ := json.Marshal(map[string]string{"token": secretToken})
+	req = httptest.NewRequest("POST", "/api/v0.1/moderation/login", bytes.NewBuffer(loginBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for moderation login, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Extract cookie
+	cookie := rec.Result().Cookies()
+	var adminCookie *http.Cookie
+	for _, c := range cookie {
+		if c.Name == "chorus_admin_session" {
+			adminCookie = c
+			break
+		}
+	}
+	if adminCookie == nil {
+		t.Fatalf("expected chorus_admin_session cookie on login response")
+	}
+
+	// SECURITY CHECK: Cookie value MUST be an opaque session ID, NOT the master secret
+	if adminCookie.Value == secretToken {
+		t.Errorf("SECURITY FLAW: Raw master admin secret was set directly in session cookie!")
+	}
+	if !strings.HasPrefix(adminCookie.Value, "adm_sess_") {
+		t.Errorf("expected opaque session id starting with adm_sess_, got %s", adminCookie.Value)
+	}
+	if !adminCookie.HttpOnly {
+		t.Errorf("expected HttpOnly = true on admin session cookie")
+	}
+
+	// 5. Authenticate via Session Cookie -> 200 OK
+	req = httptest.NewRequest("GET", "/api/v0.1/moderation/session", nil)
+	req.AddCookie(adminCookie)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for valid session cookie, got %d", rec.Code)
+	}
+
+	// 6. Test Logout -> Session Revocation on Server
+	req = httptest.NewRequest("POST", "/api/v0.1/moderation/logout", nil)
+	req.AddCookie(adminCookie)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for logout, got %d", rec.Code)
+	}
+
+	// 7. Subsequent Request with Revoked Cookie -> 401 Unauthorized
+	req = httptest.NewRequest("GET", "/api/v0.1/moderation/session", nil)
+	req.AddCookie(adminCookie)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized for revoked session cookie, got %d", rec.Code)
+	}
+}
+
+func TestHTTP_WriteRateLimiting(t *testing.T) {
+	router := setupTestServer()
+
+	// Rapid POST /api/v0.1/identities requests should be throttled after burst capacity
+	throttled := false
+	for i := 0; i < 15; i++ {
+		req := httptest.NewRequest("POST", "/api/v0.1/identities", bytes.NewBufferString(`{"conversation_name":"Ash"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "192.168.1.50:12345"
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code == http.StatusTooManyRequests {
+			throttled = true
+			break
+		}
+	}
+
+	if !throttled {
+		t.Errorf("expected POST /api/v0.1/identities to be rate limited on excessive calls")
 	}
 }
