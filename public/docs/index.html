@@ -787,7 +787,8 @@
     .btn-hero-secondary:hover { background-color: var(--bg-hover); }
 
     /* Code & Pre Blocks */
-    .code-block-container {
+    .code-block-container,
+    .code-block-wrapper {
       position: relative;
       margin: 1.5rem 0;
       border: 1px solid var(--border-default);
@@ -873,6 +874,17 @@
       word-wrap: normal;
       word-break: normal;
       -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      background-color: #0b0f14;
+    }
+
+    .code-block-wrapper pre,
+    .code-block-container pre {
+      border: none;
+      border-top: 1px solid var(--border-default);
+      border-radius: 0 0 8px 8px;
+      background-color: #0b0f14;
     }
 
     code {
@@ -1001,6 +1013,8 @@
       max-width: 100%;
       min-width: 0;
       overflow-x: auto;
+      background-color: #0d1117;
+      border-top: 1px solid var(--border-default);
     }
 
     .copy-url-btn {
