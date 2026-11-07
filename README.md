@@ -86,9 +86,11 @@ npm run dev
 **Or use Docker:**
 
 ```bash
-docker-compose up --build
+CHORUS_ADMIN_TOKEN=$(openssl rand -hex 32) docker-compose up --build
 # http://localhost:8080, data kept in the chorus-data volume
 ```
+
+The container runs with `ENV=production`, which needs a real admin token for moderation.
 
 ### Configuration
 
