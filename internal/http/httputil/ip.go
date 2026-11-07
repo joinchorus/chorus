@@ -10,13 +10,3 @@ import (
 func ExtractClientIP(r *http.Request) string {
 	return geoip.ExtractClientIP(r)
 }
-
-// ResolveCountryFromIP resolves the country code based on the client IP address.
-func ResolveCountryFromIP(ipStr string) string {
-	provider := geoip.NewLocalProvider("TR")
-	code, err := provider.ResolveCountry(nil, ipStr)
-	if err != nil || code == "" || code == "UN" {
-		return "TR"
-	}
-	return code
-}
