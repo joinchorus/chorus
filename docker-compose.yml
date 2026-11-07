@@ -12,6 +12,9 @@ services:
       - PORT=8080
       - ENV=production
       - DATA_DIR=/app/data/repository
+      # Required: the server refuses to start in production without a real
+      # moderation token. Example: CHORUS_ADMIN_TOKEN=$(openssl rand -hex 32) docker-compose up --build
+      - CHORUS_ADMIN_TOKEN=${CHORUS_ADMIN_TOKEN:?set CHORUS_ADMIN_TOKEN to a random secret}
     volumes:
       - chorus-data:/app/data/repository
     healthcheck:

@@ -18,8 +18,8 @@ import (
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
 	"chorus/internal/http/middleware"
-	"chorus/internal/idgen"
 	"chorus/internal/identity"
+	"chorus/internal/idgen"
 	"chorus/internal/moderation"
 	"chorus/internal/reporting"
 	"chorus/internal/thread"
@@ -32,6 +32,10 @@ func main() {
 	slog.SetDefault(logger)
 
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		slog.Error("refusing to start with insecure configuration", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// 1. Repositories (Git-Backed Persistence)
 	gitStore := gitstore.NewGitStore(cfg.DataDir)
@@ -86,7 +90,6 @@ func main() {
 		AdminToken:     cfg.AdminToken,
 		StaticDir:      "web/dist",
 	})
-
 
 	// 6. HTTP Server Configuration
 	srv := &http.Server{

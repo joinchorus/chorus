@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"chorus/internal/conversationname"
-	"chorus/internal/idgen"
 	"chorus/internal/identity"
+	"chorus/internal/idgen"
 	"chorus/internal/repository/memory"
 )
 

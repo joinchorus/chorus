@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # React + Vite SPA
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Pinned action SHAs in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images in Dockerfile (node, golang, alpine)
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

@@ -2,6 +2,9 @@
 data/
 web/dist/
 web/node_modules/
-server
-server.exe
+/server
+/server.exe
 *.log
+
+# Root dependencies (server.js uses only Node built-ins)
+node_modules/

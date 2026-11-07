@@ -9,7 +9,6 @@ import (
 	"chorus/internal/reporting"
 )
 
-
 // ReportHandler handles message reporting HTTP requests.
 type ReportHandler struct {
 	reportService *reporting.Service
