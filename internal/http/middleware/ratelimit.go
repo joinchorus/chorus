@@ -17,11 +17,11 @@ type clientBucket struct {
 
 // IPRateLimiter manages per-IP token bucket limiters cleanly in memory.
 type IPRateLimiter struct {
-	mu         sync.Mutex
-	clients    map[string]*clientBucket
-	rate       float64 // tokens added per second
-	burst      float64 // maximum bucket capacity
-	lastPurge  time.Time
+	mu        sync.Mutex
+	clients   map[string]*clientBucket
+	rate      float64 // tokens added per second
+	burst     float64 // maximum bucket capacity
+	lastPurge time.Time
 }
 
 // NewIPRateLimiter constructs a thread-safe token bucket rate limiter for client IPs.

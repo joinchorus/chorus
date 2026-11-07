@@ -18,8 +18,8 @@ import (
 	chttp "chorus/internal/http"
 	"chorus/internal/http/handler"
 	"chorus/internal/http/middleware"
-	"chorus/internal/idgen"
 	"chorus/internal/identity"
+	"chorus/internal/idgen"
 	"chorus/internal/moderation"
 	"chorus/internal/reporting"
 	"chorus/internal/thread"
@@ -86,7 +86,6 @@ func main() {
 		AdminToken:     cfg.AdminToken,
 		StaticDir:      "web/dist",
 	})
-
 
 	// 6. HTTP Server Configuration
 	srv := &http.Server{

@@ -13,14 +13,14 @@ import (
 
 // TranslationHandler handles message translation HTTP requests.
 type TranslationHandler struct {
-	transService *translation.Service
+	transService  *translation.Service
 	threadService ThreadService
 }
 
 // NewTranslationHandler constructs a concrete TranslationHandler.
 func NewTranslationHandler(transService *translation.Service, threadService ThreadService) *TranslationHandler {
 	return &TranslationHandler{
-		transService: transService,
+		transService:  transService,
 		threadService: threadService,
 	}
 }
