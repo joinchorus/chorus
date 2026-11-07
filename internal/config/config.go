@@ -1,9 +1,20 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"time"
 )
+
+// DefaultAdminToken is the development fallback used when no admin token is
+// configured. It is public (it lives in this repository), so Validate rejects
+// it in production.
+const DefaultAdminToken = "chorus-admin-secret-key-change-in-prod"
+
+// ErrInsecureAdminToken is returned by Validate when production runs without a
+// real admin token.
+var ErrInsecureAdminToken = errors.New(
+	"ENV=production requires an admin token: set CHORUS_ADMIN_TOKEN (or CHORUS_LICENSE_KEY / MODERATOR_API_KEY)")
 
 // Config holds the application configuration.
 type Config struct {
@@ -21,7 +32,7 @@ func Load() *Config {
 	port := getEnv("PORT", "8085")
 	env := getEnv("ENV", "development")
 	dataDir := getEnv("DATA_DIR", "./data/repository")
-	adminToken := getEnv("CHORUS_LICENSE_KEY", getEnv("CHORUS_ADMIN_TOKEN", getEnv("MODERATOR_API_KEY", "chorus-admin-secret-key-change-in-prod")))
+	adminToken := getEnv("CHORUS_LICENSE_KEY", getEnv("CHORUS_ADMIN_TOKEN", getEnv("MODERATOR_API_KEY", DefaultAdminToken)))
 
 	return &Config{
 		Port:         port,
@@ -32,6 +43,15 @@ func Load() *Config {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
+}
+
+// Validate reports configuration that is unsafe to run with. In production the
+// admin token must be set and must not be the public placeholder.
+func (c *Config) Validate() error {
+	if c.Environment == "production" && (c.AdminToken == "" || c.AdminToken == DefaultAdminToken) {
+		return ErrInsecureAdminToken
+	}
+	return nil
 }
 
 func getEnv(key, defaultValue string) string {
