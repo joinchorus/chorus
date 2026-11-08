@@ -53,6 +53,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	// Helper to register API routes under a version prefix (/api/v0.1 and /api/v1)
 	registerRoutes := func(prefix string) {
+		mux.HandleFunc("GET "+prefix+"/health", cfg.Health.Check)
+
 		mux.Handle("POST "+prefix+"/identities", identityRateGuard(http.HandlerFunc(cfg.Identity.Create)))
 		mux.HandleFunc("GET "+prefix+"/identities/{id}", cfg.Identity.GetByID)
 
