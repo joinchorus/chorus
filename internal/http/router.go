@@ -2,8 +2,6 @@ package http
 
 import (
 	"net/http"
-	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -111,89 +109,30 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			host = host[:idx]
 		}
 
-		findFile := func(relPath string) string {
-			if _, err := os.Stat(relPath); err == nil {
-				return relPath
-			}
-			// Fallback for test runners executing in subpackages
-			parentPath := filepath.Join("..", "..", "..", relPath)
-			if _, err := os.Stat(parentPath); err == nil {
-				return parentPath
-			}
-			return relPath
-		}
-
-		// under joins an untrusted URL path below base. Cleaning the rooted path first
-		// removes every ".." element, so the result cannot leave base.
-		under := func(base, urlPath string) string {
-			return filepath.Join(base, filepath.FromSlash(path.Clean("/"+urlPath)))
-		}
-
-		serveFile := func(targetPath string) {
-			f, err := os.Open(targetPath)
-			if err != nil {
-				if strings.HasSuffix(targetPath, "index.html") {
-					w.Header().Set("Content-Type", "text/html; charset=utf-8")
-					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte("<!DOCTYPE html><html><head><title>Chorus</title></head><body><div id=\"root\"></div></body></html>"))
-					return
-				}
-				http.NotFound(w, r)
-				return
-			}
-			defer f.Close()
-			info, err := f.Stat()
-			if err != nil || info.IsDir() {
-				if strings.HasSuffix(targetPath, "index.html") {
-					w.Header().Set("Content-Type", "text/html; charset=utf-8")
-					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte("<!DOCTYPE html><html><head><title>Chorus</title></head><body><div id=\"root\"></div></body></html>"))
-					return
-				}
-				http.NotFound(w, r)
-				return
-			}
-			http.ServeContent(w, r, info.Name(), info.ModTime(), f)
-		}
-
 		if host == "joinchorus.app" || host == "www.joinchorus.app" || hasPathPrefix(r.URL.Path, "/landing") {
-			relSubPath := strings.TrimPrefix(r.URL.Path, "/landing")
-			if relSubPath == "" || relSubPath == "/" {
-				relSubPath = "index.html"
+			rel := strings.TrimPrefix(r.URL.Path, "/landing")
+			if rel == "" || rel == "/" {
+				rel = "index.html"
 			}
-			landingAsset := findFile(under(filepath.Join("public", "landing"), relSubPath))
-			if info, err := os.Stat(landingAsset); err == nil && !info.IsDir() {
-				serveFile(landingAsset)
-				return
-			}
-			landingPath := findFile(filepath.Join("public", "landing", "index.html"))
-			if _, err := os.Stat(landingPath); err == nil {
-				serveFile(landingPath)
+			if serveFrom(w, r, filepath.Join("public", "landing"), rel) ||
+				serveFrom(w, r, filepath.Join("public", "landing"), "index.html") {
 				return
 			}
 		}
 
 		if host == "docs.joinchorus.app" || hasPathPrefix(r.URL.Path, "/docs") {
-			relSubPath := strings.TrimPrefix(r.URL.Path, "/docs")
-			if relSubPath == "" || relSubPath == "/" {
-				relSubPath = "index.html"
+			rel := strings.TrimPrefix(r.URL.Path, "/docs")
+			if rel == "" || rel == "/" {
+				rel = "index.html"
 			}
-			docsAsset := findFile(under(filepath.Join("public", "docs"), relSubPath))
-			if info, err := os.Stat(docsAsset); err == nil && !info.IsDir() {
-				serveFile(docsAsset)
-				return
-			}
-			docsPath := findFile(filepath.Join("public", "docs", "index.html"))
-			if _, err := os.Stat(docsPath); err == nil {
-				serveFile(docsPath)
+			if serveFrom(w, r, filepath.Join("public", "docs"), rel) ||
+				serveFrom(w, r, filepath.Join("public", "docs"), "index.html") {
 				return
 			}
 		}
 
 		// Main Web App (chat.joinchorus.app or localhost)
-		staticPath := findFile(under(cfg.StaticDir, r.URL.Path))
-		if info, err := os.Stat(staticPath); err == nil && !info.IsDir() {
-			serveFile(staticPath)
+		if serveFrom(w, r, cfg.StaticDir, r.URL.Path) {
 			return
 		}
 
@@ -204,8 +143,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			return
 		}
 
-		indexPath := findFile(filepath.Join(cfg.StaticDir, "index.html"))
-		serveFile(indexPath)
+		if !serveFrom(w, r, cfg.StaticDir, "index.html") {
+			writeFallbackIndex(w)
+		}
 	})
 
 	// Wrap in global middleware stack (outermost to innermost: RequestID -> Logger -> Recoverer -> CORS -> SecurityHeaders -> Mux)
@@ -217,10 +157,4 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	handler = middleware.RequestID(handler)
 
 	return handler
-}
-
-// hasPathPrefix reports whether p is prefix itself or lies below it, matching on
-// whole path segments ("/landing" matches "/landing/x" but not "/landing..").
-func hasPathPrefix(p, prefix string) bool {
-	return p == prefix || strings.HasPrefix(p, prefix+"/")
 }
