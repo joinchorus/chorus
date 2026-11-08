@@ -199,10 +199,8 @@ func TestThreadService_Operations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed adding message: %v", err)
 		}
-		// Must NOT get OP's Thread A conversation name ("River")
-		if crossReply.ConversationName == "River" {
-			t.Errorf("SECURITY FLAW: Cross-thread token allowed identity reuse across different threads")
-		}
+		// Identity reuse is detected via AuthorID below; names come from a 4-name pool
+		// and can repeat by chance (~25% of runs).
 		if crossReply.AuthorID == th.AuthorID {
 			t.Errorf("SECURITY FLAW: Cross-thread token allowed author ID reuse across different threads")
 		}
