@@ -22,6 +22,8 @@ type RouterConfig struct {
 	SessionManager *middleware.SessionManager
 	AdminToken     string
 	StaticDir      string
+	// Flusher, when set, is flushed after every successful write request.
+	Flusher middleware.Flusher
 }
 
 // NewRouter constructs and configures an http.Handler with all routes, SPA fallback, & global middlewares.
@@ -203,6 +205,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	// Wrap in global middleware stack (outermost to innermost: RequestID -> Logger -> Recoverer -> CORS -> SecurityHeaders -> Mux)
 	var handler http.Handler = mux
+	if cfg.Flusher != nil {
+		handler = middleware.DurableWrites(cfg.Flusher)(handler)
+	}
 	handler = middleware.SecurityHeaders(handler)
 	handler = middleware.CORS(handler)
 	handler = middleware.Recoverer(handler)

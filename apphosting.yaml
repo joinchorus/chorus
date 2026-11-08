@@ -3,7 +3,8 @@
 
 runConfig:
   minInstances: 0
-  maxInstances: 10
+  # One writer: the data snapshot in Cloud Storage assumes a single instance.
+  maxInstances: 1
   concurrency: 80
   cpu: 1
   memoryMiB: 512
@@ -15,6 +16,10 @@ env:
     value: "production"
   - variable: DATA_DIR
     value: "/tmp/chorus-repository"
+  # Cloud Storage bucket holding the data snapshot; the disk is ephemeral.
+  # Create it first (see OPERATIONS.md); leave unset to run without backups.
+  - variable: CHORUS_BACKUP_BUCKET
+    value: "chorus-chat-app-chorus-data"
   # Shared with the Cloudflare Transform Rule that adds X-Chorus-Edge. Create it
   # first: firebase apphosting:secrets:set CHORUS_EDGE_SECRET
   - variable: CHORUS_EDGE_SECRET

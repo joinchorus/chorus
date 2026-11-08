@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"chorus/internal/backup"
 	"chorus/internal/config"
 	"chorus/internal/conversationname"
 	"chorus/internal/geoip"
@@ -39,6 +40,21 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		slog.Error("refusing to start with insecure configuration", slog.Any("error", err))
 		os.Exit(1)
+	}
+
+	// 0. Restore the data directory from its Cloud Storage snapshot (ephemeral-disk
+	// hosting). Refusing to start on a restore error is deliberate: serving an
+	// empty directory would let the next backup replace the stored snapshot.
+	dataBackup := backup.New(backup.Config{Bucket: cfg.BackupBucket, Object: cfg.BackupObject, DataDir: cfg.DataDir})
+	restoreCtx, cancelRestore := context.WithTimeout(context.Background(), 60*time.Second)
+	restored, err := dataBackup.Restore(restoreCtx)
+	cancelRestore()
+	if err != nil {
+		slog.Error("restoring the data backup failed; not starting", slog.Any("error", err))
+		os.Exit(1)
+	}
+	if dataBackup != nil {
+		slog.Info("data backup enabled", slog.String("bucket", cfg.BackupBucket), slog.Bool("restored", restored))
 	}
 
 	// 1. Repositories (Git-Backed Persistence)
@@ -89,7 +105,12 @@ func main() {
 	modH := handler.NewModerationHandler(moderationService, sessionManager, cfg.AdminToken)
 
 	// 5. Router
+	var flusher middleware.Flusher
+	if dataBackup != nil {
+		flusher = dataBackup
+	}
 	router := chttp.NewRouter(chttp.RouterConfig{
+		Flusher:        flusher,
 		Health:         healthH,
 		Identity:       identityH,
 		Thread:         threadH,
@@ -110,6 +131,10 @@ func main() {
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 
+	backupCtx, stopBackup := context.WithCancel(context.Background())
+	defer stopBackup()
+	go dataBackup.Run(backupCtx)
+
 	// 7. Graceful Shutdown listener
 	shutdownErr := make(chan error, 1)
 	go func() {
@@ -122,7 +147,13 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		shutdownErr <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		stopBackup()
+		// Last chance to persist writes that arrived since the previous flush.
+		if flushErr := dataBackup.Flush(ctx); flushErr != nil {
+			slog.Error("final backup failed", slog.Any("error", flushErr))
+		}
+		shutdownErr <- err
 	}()
 
 	slog.Info("server starting", slog.String("port", cfg.Port), slog.String("env", cfg.Environment), slog.String("data_dir", cfg.DataDir))
