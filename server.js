@@ -129,13 +129,39 @@ function startGoBackend() {
     });
 
     goProcess.on('exit', (code, signal) => {
+      if (shuttingDown) {
+        process.exit(0);
+      }
       if (code !== null && code !== 0) {
         lastGoError = `Go backend process exited with code ${code} (signal: ${signal}).`;
         console.warn(lastGoError);
+        // Exiting lets Cloud Run replace the instance. Staying up would keep a
+        // container that answers 503 on /api and is never restarted.
+        if (IS_PRODUCTION) {
+          failProduction(lastGoError);
+        }
       }
     });
   }
 }
+
+// Cloud Run sends SIGTERM to this process only. Pass it on and wait for the Go
+// server, which writes its final data backup while it shuts down.
+let shuttingDown = false;
+function forwardShutdown(signal) {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  if (!goProcess) {
+    process.exit(0);
+  }
+  goProcess.kill(signal);
+  // The Go server's own shutdown is bounded; never outlive Cloud Run's grace period.
+  setTimeout(() => process.exit(0), 9000).unref();
+}
+process.on('SIGTERM', () => forwardShutdown('SIGTERM'));
+process.on('SIGINT', () => forwardShutdown('SIGINT'));
 
 startGoBackend();
 

@@ -37,6 +37,10 @@ const (
 	defaultTokenURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 	defaultInterval = 60 * time.Second
 	maxRestoreBytes = 1 << 30
+	// restoreAttempts connections are tried with a doubling delay (1+2+4+8+16 s by
+	// default), which fits inside the 60 s the server allows for the restore.
+	restoreAttempts = 6
+	defaultRetry    = time.Second
 	maxSnapshotWarn = 100 << 20
 )
 
@@ -46,6 +50,8 @@ type Config struct {
 	Object   string
 	DataDir  string
 	Interval time.Duration
+	// RetryDelay is the first wait between restore attempts; it doubles each time.
+	RetryDelay time.Duration
 
 	// Endpoints and client are overridable for tests.
 	APIBase    string
@@ -74,6 +80,9 @@ func New(cfg Config) *Backup {
 	}
 	if cfg.Interval <= 0 {
 		cfg.Interval = defaultInterval
+	}
+	if cfg.RetryDelay <= 0 {
+		cfg.RetryDelay = defaultRetry
 	}
 	if cfg.APIBase == "" {
 		cfg.APIBase = defaultAPIBase
@@ -106,7 +115,7 @@ func (b *Backup) Restore(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	resp, err := b.do(ctx, http.MethodGet, b.objectURL("?alt=media"), nil, "")
+	resp, err := b.fetch(ctx, b.objectURL("?alt=media"))
 	if err != nil {
 		return false, err
 	}
@@ -117,7 +126,10 @@ func (b *Backup) Restore(ctx context.Context) (bool, error) {
 		if missingBucket(resp) {
 			return false, statusError("download snapshot", resp)
 		}
+		// Nothing stored yet. Remember what the directory looks like now, so the
+		// first flush does not upload an empty archive.
 		b.generation = 0
+		b.fingerprint, _ = fingerprint(b.cfg.DataDir)
 		return false, nil
 	case http.StatusOK:
 	default:
@@ -214,6 +226,33 @@ func (b *Backup) Run(ctx context.Context) {
 				slog.Warn("periodic backup failed", slog.Any("error", err))
 			}
 		}
+	}
+}
+
+// fetch performs a GET and retries connection failures and 429/5xx answers with a
+// doubling delay. A cold instance can fail its first connections to storage
+// (TLS handshake timeouts were seen), and giving up there would stop the app.
+// Other statuses, including 404, are final and returned to the caller.
+func (b *Backup) fetch(ctx context.Context, target string) (*http.Response, error) {
+	delay := b.cfg.RetryDelay
+	for attempt := 1; ; attempt++ {
+		resp, err := b.do(ctx, http.MethodGet, target, nil, "")
+		transient := err != nil || resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= http.StatusInternalServerError
+		if !transient || attempt == restoreAttempts || ctx.Err() != nil {
+			return resp, err
+		}
+		if err != nil {
+			slog.Warn("backup download failed, retrying", slog.Int("attempt", attempt), slog.Any("error", err))
+		} else {
+			slog.Warn("backup download failed, retrying", slog.Int("attempt", attempt), slog.String("status", resp.Status))
+			resp.Body.Close()
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
+		delay *= 2
 	}
 }
 

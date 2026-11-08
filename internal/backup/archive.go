@@ -30,6 +30,9 @@ func skipEntry(rel string) bool {
 // listEntries returns the relative paths of the directories and regular files to
 // snapshot, sorted so archives and fingerprints are deterministic.
 func listEntries(dir string) ([]string, error) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, nil
+	}
 	var rels []string
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
