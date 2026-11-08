@@ -57,7 +57,7 @@ jobs:
         run: go test -v ./...
 
       - name: Test the Node wrapper (server.js)
-        run: node --test scripts/
+        run: node --test scripts/server.test.js
 
   backend-build-script:
     # Runs the exact script App Hosting runs, in an image with no Go toolchain, so
