@@ -8,6 +8,7 @@ To keep the data, the server keeps a snapshot of `DATA_DIR` in a private Cloud S
 
 - **Start-up:** if `DATA_DIR` is empty, the snapshot is downloaded and unpacked. If the download fails for any reason other than "no snapshot yet", the server **exits** instead of starting empty, because serving an empty directory would let the next backup replace the stored data.
 - **After writes:** a successful `POST`/`PUT`/`PATCH`/`DELETE` is answered only after the snapshot is uploaded (unchanged data is skipped). A failed upload is logged and retried; it does not fail the request.
+- **Consistency:** a snapshot can, rarely, catch a file while a concurrent request is rewriting it. The writer's own request flushes again right afterwards, which replaces that snapshot, so only a crash inside that window could keep it. Making file writes atomic is planned together with confining the store to its data root.
 - **Periodically and on shutdown:** a 60 s safety-net flush, and a final flush on `SIGTERM`.
 - **One writer:** uploads use `ifGenerationMatch`, so a second instance cannot overwrite a newer snapshot (it logs a conflict instead). `apphosting.yaml` therefore sets `maxInstances: 1`. During a rollout the old and new instance briefly overlap; writes the old instance accepts after the new one has restored can be lost.
 

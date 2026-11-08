@@ -19,39 +19,10 @@ func WriteJSONFile(fullPath string, v any) error {
 		return fmt.Errorf("failed marshaling json: %w", err)
 	}
 
-	if err := writeFileAtomic(fullPath, data); err != nil {
+	if err := os.WriteFile(fullPath, data, 0644); err != nil {
 		return fmt.Errorf("failed writing json file %s: %w", fullPath, err)
 	}
 
-	return nil
-}
-
-// writeFileAtomic writes to a temporary file in the same directory and renames it
-// into place, so readers (and backup snapshots) see the old or the new content,
-// never a partial file. Temporary names start with ".tmp-", which snapshots skip.
-func writeFileAtomic(fullPath string, data []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(fullPath), ".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpName)
-		return err
-	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
-		_ = os.Remove(tmpName)
-		return err
-	}
-	if err := os.Rename(tmpName, fullPath); err != nil {
-		_ = os.Remove(tmpName)
-		return err
-	}
 	return nil
 }
 
