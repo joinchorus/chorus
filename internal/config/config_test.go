@@ -37,3 +37,22 @@ func TestLoadFallsBackToPlaceholder(t *testing.T) {
 		t.Fatalf("expected placeholder token, got %q", got)
 	}
 }
+
+func TestLoadTrustGeoHeaders(t *testing.T) {
+	t.Run("off by default", func(t *testing.T) {
+		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "")
+		if Load().TrustGeoHeaders {
+			t.Error("TrustGeoHeaders must default to false")
+		}
+	})
+	t.Run("on only for the exact value true", func(t *testing.T) {
+		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "true")
+		if !Load().TrustGeoHeaders {
+			t.Error("expected TrustGeoHeaders=true")
+		}
+		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "yes")
+		if Load().TrustGeoHeaders {
+			t.Error("only \"true\" should enable it")
+		}
+	})
+}

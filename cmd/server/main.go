@@ -54,7 +54,13 @@ func main() {
 	// 2. Auxiliary Services (ID generator, Name generator & GeoIP)
 	idGen := idgen.NewRandomIDGenerator()
 	nameGen := conversationname.NewDefaultGenerator(nil)
-	geoService := geoip.NewService("US")
+	// Private/loopback peers only occur in development; in production they must
+	// not be reported as a real country.
+	devCountry := "US"
+	if cfg.Environment == "production" {
+		devCountry = "UN"
+	}
+	geoService := geoip.NewService(devCountry, cfg.TrustGeoHeaders)
 
 	// 3. Services (Concrete instances with injected dependencies)
 	identityService := identity.NewService(identityRepo, idGen, nameGen, time.Now)
