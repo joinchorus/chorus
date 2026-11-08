@@ -31,6 +31,8 @@ if ! command -v go >/dev/null 2>&1; then
   export PATH="$WORK/go/bin:$PATH"
 fi
 
+# -buildvcs=false: Go's own VCS stamping fails when .git is missing or owned by
+# another user (CI containers, build images); the commit is stamped below instead.
 # Stamp the commit so /healthz shows which source a running instance was built from.
 commit="${COMMIT_SHA:-}"
 if [ -z "$commit" ]; then
@@ -39,7 +41,7 @@ fi
 
 export GOCACHE="$WORK/gocache" GOMODCACHE="$WORK/gomod" GOFLAGS="-mod=readonly"
 echo "Building backend $(go version | cut -d' ' -f3) commit ${commit}"
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false \
   -ldflags "-s -w -X main.commit=${commit}" \
   -o server ./cmd/server
 
