@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -23,7 +25,12 @@ func (s *GitStore) addAndCommitLocked(ctx context.Context, relativePath string, 
 		return nil
 	}
 
-	if err := s.runGit(ctx, "add", relativePath); err != nil {
+	if err := validateRelativePath(relativePath); err != nil {
+		return err
+	}
+
+	// "--" ends option parsing, so a path can never be read as a git flag.
+	if err := s.runGit(ctx, "add", "--", relativePath); err != nil {
 		return fmt.Errorf("git add failed for %s: %w", relativePath, err)
 	}
 
@@ -32,6 +39,15 @@ func (s *GitStore) addAndCommitLocked(ctx context.Context, relativePath string, 
 		return fmt.Errorf("git commit failed for %s: %w", relativePath, err)
 	}
 
+	return nil
+}
+
+// validateRelativePath rejects paths that are absolute or climb out of the repository.
+func validateRelativePath(p string) error {
+	clean := filepath.Clean(p)
+	if p == "" || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("invalid repository path %q", p)
+	}
 	return nil
 }
 
