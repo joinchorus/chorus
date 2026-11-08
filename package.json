@@ -4,7 +4,7 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "build": "cd web && npm ci && npm run build",
+    "build": "bash scripts/build-backend.sh && cd web && npm ci && npm run build",
     "start": "node server.js"
   }
 }

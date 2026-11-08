@@ -26,6 +26,10 @@ import (
 	"chorus/internal/translation"
 )
 
+// commit is the source revision, set at build time by scripts/build-backend.sh
+// (-ldflags "-X main.commit=...").
+var commit = "unknown"
+
 func main() {
 	// Initialize structured logging
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -77,7 +81,7 @@ func main() {
 	sessionManager := middleware.NewSessionManager()
 
 	// 4. HTTP Handlers
-	healthH := handler.NewHealthHandler()
+	healthH := handler.NewHealthHandler().WithCommit(commit)
 	identityH := handler.NewIdentityHandler(identityService)
 	threadH := handler.NewThreadHandler(threadService, geoService)
 	transH := handler.NewTranslationHandler(transService, threadService)
