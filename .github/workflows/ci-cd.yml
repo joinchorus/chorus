@@ -43,8 +43,40 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Compiled binaries must not be tracked
+        # App Hosting builds the backend from source (scripts/build-backend.sh).
+        # A committed binary would be run instead of the merged code.
+        run: |
+          tracked="$(git ls-files server server.exe)"
+          if [ -n "$tracked" ]; then
+            echo "Remove the compiled binary from git: $tracked"
+            exit 1
+          fi
+
       - name: Run Unit & Integration Tests
         run: go test -v ./...
+
+  backend-build-script:
+    # Runs the exact script App Hosting runs, in an image with no Go toolchain, so
+    # the toolchain download, checksum and build are exercised before merge.
+    name: Build Backend Like App Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build in a clean image
+        run: |
+          docker run --rm -v "$PWD":/work -w /work -e COMMIT_SHA="$GITHUB_SHA" \
+            node:22-bookworm bash scripts/build-backend.sh
+
+      - name: Check the binary
+        run: |
+          file server | grep -q 'ELF 64-bit LSB executable, x86-64'
+          go_stamp="$(strings server | grep -c "$GITHUB_SHA" || true)"
+          test "$go_stamp" -ge 1
 
   frontend-build:
     name: Build React SPA

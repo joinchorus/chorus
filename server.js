@@ -26,7 +26,20 @@ const MIME_TYPES = {
   '.map': 'application/json; charset=utf-8',
 };
 
+const IS_PRODUCTION = process.env.ENV === 'production';
+
+// Production must run exactly what `npm run build` produced. Failing here fails
+// the rollout (the previous version keeps serving) instead of starting an app
+// whose API silently answers 503.
+function failProduction(message) {
+  console.error('FATAL: ' + message);
+  process.exit(1);
+}
+
 // Ensure frontend assets exist
+if (IS_PRODUCTION && !fs.existsSync(DIST_DIR)) {
+  failProduction('frontend bundle not found at ' + DIST_DIR + '; the build step did not produce it.');
+}
 if (!fs.existsSync(DIST_DIR)) {
   try {
     console.log('Building React SPA bundle...');
@@ -69,6 +82,10 @@ function startGoBackend() {
       } catch {}
       binaryToRun = serverBinarySrc;
     }
+  }
+
+  if (IS_PRODUCTION && !binaryToRun) {
+    failProduction('Go backend binary not found at ' + serverBinarySrc + '; scripts/build-backend.sh did not produce it.');
   }
 
   if (binaryToRun) {
