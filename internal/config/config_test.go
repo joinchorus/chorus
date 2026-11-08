@@ -38,21 +38,17 @@ func TestLoadFallsBackToPlaceholder(t *testing.T) {
 	}
 }
 
-func TestLoadTrustGeoHeaders(t *testing.T) {
-	t.Run("off by default", func(t *testing.T) {
-		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "")
-		if Load().TrustGeoHeaders {
-			t.Error("TrustGeoHeaders must default to false")
+func TestLoadEdgeSecret(t *testing.T) {
+	t.Run("empty by default", func(t *testing.T) {
+		t.Setenv("CHORUS_EDGE_SECRET", "")
+		if got := Load().EdgeSecret; got != "" {
+			t.Errorf("EdgeSecret must default to empty, got %q", got)
 		}
 	})
-	t.Run("on only for the exact value true", func(t *testing.T) {
-		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "true")
-		if !Load().TrustGeoHeaders {
-			t.Error("expected TrustGeoHeaders=true")
-		}
-		t.Setenv("CHORUS_TRUST_GEO_HEADERS", "yes")
-		if Load().TrustGeoHeaders {
-			t.Error("only \"true\" should enable it")
+	t.Run("read from the environment", func(t *testing.T) {
+		t.Setenv("CHORUS_EDGE_SECRET", "abc123")
+		if got := Load().EdgeSecret; got != "abc123" {
+			t.Errorf("got %q, want abc123", got)
 		}
 	})
 }

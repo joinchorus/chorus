@@ -60,7 +60,7 @@ func main() {
 	if cfg.Environment == "production" {
 		devCountry = "UN"
 	}
-	geoService := geoip.NewService(devCountry, cfg.TrustGeoHeaders)
+	geoService := geoip.NewService(devCountry, cfg.EdgeSecret)
 
 	// 3. Services (Concrete instances with injected dependencies)
 	identityService := identity.NewService(identityRepo, idGen, nameGen, time.Now)

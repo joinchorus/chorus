@@ -2,6 +2,7 @@ package geoip
 
 import (
 	"context"
+	"crypto/subtle"
 	"net"
 	"net/http"
 	"strings"
@@ -14,17 +15,21 @@ type Service struct {
 	providers []Provider
 	headerP   *HeaderProvider
 	localP    *LocalProvider
-	// trustEdgeHeaders controls whether CF-IPCountry / X-Appengine-Country are
-	// believed. Any client can send them, so this must only be true when every
-	// request passes through a proxy that overwrites them (e.g. Cloudflare).
-	trustEdgeHeaders bool
+	// edgeSecret proves a request came through our Cloudflare zone. The zone
+	// adds it as the EdgeSecretHeader request header; the country header is
+	// believed only when the value matches. Empty disables edge headers.
+	edgeSecret string
 }
+
+// EdgeSecretHeader carries the shared secret that Cloudflare adds (Transform
+// Rule) to every request for the app hostname.
+const EdgeSecretHeader = "X-Chorus-Edge"
 
 // NewService constructs a concrete GeoIP Service with provider chain.
 // defaultDevCountry is returned for loopback/private peers (local development).
-// trustEdgeHeaders enables the edge country headers; leave it false unless the
-// app is only reachable through a proxy that sets them.
-func NewService(defaultDevCountry string, trustEdgeHeaders bool) *Service {
+// edgeSecret is the value Cloudflare sends in EdgeSecretHeader; pass "" to
+// ignore CF-IPCountry entirely (no trusted edge).
+func NewService(defaultDevCountry string, edgeSecret string) *Service {
 	if defaultDevCountry == "" {
 		defaultDevCountry = "TR"
 	}
@@ -36,7 +41,7 @@ func NewService(defaultDevCountry string, trustEdgeHeaders bool) *Service {
 		headerP:   headerP,
 		localP:    localP,
 
-		trustEdgeHeaders: trustEdgeHeaders,
+		edgeSecret: edgeSecret,
 	}
 }
 
@@ -50,8 +55,8 @@ func (s *Service) ResolveCountryFromRequest(ctx context.Context, r *http.Request
 		return "UN"
 	}
 
-	// 1. Edge headers, only when explicitly trusted.
-	if s.trustEdgeHeaders {
+	// 1. CF-IPCountry, only when the request proves it passed through our edge.
+	if s.fromTrustedEdge(r) {
 		if code := s.headerP.ResolveFromRequest(r); code != "" {
 			return code
 		}
@@ -66,6 +71,16 @@ func (s *Service) ResolveCountryFromRequest(ctx context.Context, r *http.Request
 	}
 
 	return "UN"
+}
+
+// fromTrustedEdge reports whether the request carries the correct edge secret.
+// A direct hit on the origin (e.g. the *.hosted.app URL) cannot know it.
+func (s *Service) fromTrustedEdge(r *http.Request) bool {
+	if s.edgeSecret == "" {
+		return false
+	}
+	got := r.Header.Get(EdgeSecretHeader)
+	return subtle.ConstantTimeCompare([]byte(got), []byte(s.edgeSecret)) == 1
 }
 
 // peerIP returns the host of the direct TCP peer (RemoteAddr), ignoring headers.

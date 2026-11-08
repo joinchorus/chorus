@@ -22,12 +22,12 @@ type Config struct {
 	Environment string
 	DataDir     string
 	AdminToken  string
-	// TrustGeoHeaders makes the server believe CF-IPCountry / X-Appengine-Country.
-	// Only enable it behind a proxy that overwrites them.
-	TrustGeoHeaders bool
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	IdleTimeout     time.Duration
+	// EdgeSecret is the shared secret Cloudflare adds as X-Chorus-Edge. When set,
+	// CF-IPCountry is believed for requests that carry it. Empty disables it.
+	EdgeSecret   string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
 }
 
 // Load fetches configuration settings from environment variables or sensible defaults.
@@ -38,14 +38,14 @@ func Load() *Config {
 	adminToken := getEnv("CHORUS_LICENSE_KEY", getEnv("CHORUS_ADMIN_TOKEN", getEnv("MODERATOR_API_KEY", DefaultAdminToken)))
 
 	return &Config{
-		Port:            port,
-		Environment:     env,
-		DataDir:         dataDir,
-		AdminToken:      adminToken,
-		TrustGeoHeaders: getEnv("CHORUS_TRUST_GEO_HEADERS", "false") == "true",
-		ReadTimeout:     5 * time.Second,
-		WriteTimeout:    10 * time.Second,
-		IdleTimeout:     120 * time.Second,
+		Port:         port,
+		Environment:  env,
+		DataDir:      dataDir,
+		AdminToken:   adminToken,
+		EdgeSecret:   getEnv("CHORUS_EDGE_SECRET", ""),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 }
 
