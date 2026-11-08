@@ -24,7 +24,12 @@ type Config struct {
 	AdminToken  string
 	// EdgeSecret is the shared secret Cloudflare adds as X-Chorus-Edge. When set,
 	// CF-IPCountry is believed for requests that carry it. Empty disables it.
-	EdgeSecret   string
+	EdgeSecret string
+	// BackupBucket is a Cloud Storage bucket that holds a snapshot of DataDir for
+	// hosting with an ephemeral disk. Empty disables backups. BackupObject names the
+	// snapshot object.
+	BackupBucket string
+	BackupObject string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
@@ -43,6 +48,8 @@ func Load() *Config {
 		DataDir:      dataDir,
 		AdminToken:   adminToken,
 		EdgeSecret:   getEnv("CHORUS_EDGE_SECRET", ""),
+		BackupBucket: getEnv("CHORUS_BACKUP_BUCKET", ""),
+		BackupObject: getEnv("CHORUS_BACKUP_OBJECT", ""),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
