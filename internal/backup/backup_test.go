@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"chorus/internal/backup"
 )
@@ -31,6 +32,8 @@ type fakeGCS struct {
 	tokenCalls int
 	failGet    int // when non-zero, downloads return this status
 	noBucket   bool
+	failFirst  int // the first N downloads fail with 503, then succeed
+	getCalls   int // downloads and generation reads that reached the server
 }
 
 func (f *fakeGCS) handler() http.Handler {
@@ -50,6 +53,12 @@ func (f *fakeGCS) handler() http.Handler {
 		defer f.mu.Unlock()
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		f.getCalls++
+		if f.failFirst > 0 {
+			f.failFirst--
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		if f.noBucket {
@@ -102,6 +111,8 @@ func newBackup(t *testing.T, fake *fakeGCS, dir string) *backup.Backup {
 		DataDir:  dir,
 		APIBase:  srv.URL,
 		TokenURL: srv.URL + "/token",
+		// Retries must not slow the tests down.
+		RetryDelay: time.Millisecond,
 	})
 	if b == nil {
 		t.Fatal("New returned nil with a bucket configured")
@@ -314,5 +325,83 @@ func TestMissingBucketIsASetupErrorNotAnEmptyStore(t *testing.T) {
 	write(t, filepath.Join(dir, "a.json"), "1")
 	if err := b.Flush(context.Background()); err == nil {
 		t.Fatal("Flush must fail when the bucket does not exist")
+	}
+}
+
+func TestRestoreRetriesTransientErrors(t *testing.T) {
+	// A cold instance can fail its first connections to storage; the restore has
+	// to ride that out instead of giving up and stopping the app.
+	src := filepath.Join(t.TempDir(), "src")
+	write(t, filepath.Join(src, "a.json"), "stored")
+	fake := &fakeGCS{t: t}
+	if err := newBackup(t, fake, src).Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	fake.failFirst = 3
+	fake.getCalls = 0
+	dst := filepath.Join(t.TempDir(), "dst")
+	restored, err := newBackup(t, fake, dst).Restore(context.Background())
+	if err != nil || !restored {
+		t.Fatalf("Restore = %v, %v; want true, nil after transient failures", restored, err)
+	}
+	if fake.getCalls != 4 {
+		t.Errorf("download attempts = %d, want 4 (three failures, one success)", fake.getCalls)
+	}
+	if got := read(t, filepath.Join(dst, "a.json")); got != "stored" {
+		t.Errorf("restored content = %q", got)
+	}
+}
+
+func TestRestoreGivesUpAfterRepeatedFailures(t *testing.T) {
+	fake := &fakeGCS{t: t, failGet: http.StatusServiceUnavailable}
+	if _, err := newBackup(t, fake, filepath.Join(t.TempDir(), "d")).Restore(context.Background()); err == nil {
+		t.Fatal("Restore must fail once the attempts are used up")
+	}
+	if fake.getCalls < 3 || fake.getCalls > 10 {
+		t.Errorf("download attempts = %d, want a few retries, not one and not endless", fake.getCalls)
+	}
+}
+
+func TestRestoreDoesNotRetryAMissingSnapshot(t *testing.T) {
+	fake := &fakeGCS{t: t}
+	restored, err := newBackup(t, fake, filepath.Join(t.TempDir(), "d")).Restore(context.Background())
+	if err != nil || restored {
+		t.Fatalf("Restore = %v, %v; want false, nil", restored, err)
+	}
+	if fake.getCalls != 1 {
+		t.Errorf("download attempts = %d, a missing snapshot is final and must not be retried", fake.getCalls)
+	}
+}
+
+func TestRestoreHonoursContextCancellationWhileRetrying(t *testing.T) {
+	fake := &fakeGCS{t: t, failGet: http.StatusServiceUnavailable}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := newBackup(t, fake, filepath.Join(t.TempDir(), "d")).Restore(ctx); err == nil {
+		t.Fatal("Restore must stop when its context is cancelled")
+	}
+}
+
+func TestFirstFlushWithNothingStoredDoesNotUploadAnEmptyArchive(t *testing.T) {
+	fake := &fakeGCS{t: t}
+	dir := filepath.Join(t.TempDir(), "data")
+	b := newBackup(t, fake, dir)
+	ctx := context.Background()
+	if _, err := b.Restore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fake.uploads != 0 {
+		t.Fatalf("uploads = %d for an empty data directory, want 0", fake.uploads)
+	}
+	write(t, filepath.Join(dir, "a.json"), "1")
+	if err := b.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fake.uploads != 1 {
+		t.Fatalf("uploads = %d after real data appeared, want 1", fake.uploads)
 	}
 }

@@ -56,6 +56,9 @@ jobs:
       - name: Run Unit & Integration Tests
         run: go test -v ./...
 
+      - name: Test the Node wrapper (server.js)
+        run: node --test scripts/
+
   backend-build-script:
     # Runs the exact script App Hosting runs, in an image with no Go toolchain, so
     # the toolchain download, checksum and build are exercised before merge.
