@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -122,6 +123,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			return relPath
 		}
 
+		// under joins an untrusted URL path below base. Cleaning the rooted path first
+		// removes every ".." element, so the result cannot leave base.
+		under := func(base, urlPath string) string {
+			return filepath.Join(base, filepath.FromSlash(path.Clean("/"+urlPath)))
+		}
+
 		serveFile := func(targetPath string) {
 			f, err := os.Open(targetPath)
 			if err != nil {
@@ -149,12 +156,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 		}
 
-		if host == "joinchorus.app" || host == "www.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/landing") {
+		if host == "joinchorus.app" || host == "www.joinchorus.app" || hasPathPrefix(r.URL.Path, "/landing") {
 			relSubPath := strings.TrimPrefix(r.URL.Path, "/landing")
 			if relSubPath == "" || relSubPath == "/" {
 				relSubPath = "index.html"
 			}
-			landingAsset := findFile(filepath.Join("public", "landing", filepath.Clean(relSubPath)))
+			landingAsset := findFile(under(filepath.Join("public", "landing"), relSubPath))
 			if info, err := os.Stat(landingAsset); err == nil && !info.IsDir() {
 				serveFile(landingAsset)
 				return
@@ -166,12 +173,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			}
 		}
 
-		if host == "docs.joinchorus.app" || strings.HasPrefix(r.URL.Path, "/docs") {
+		if host == "docs.joinchorus.app" || hasPathPrefix(r.URL.Path, "/docs") {
 			relSubPath := strings.TrimPrefix(r.URL.Path, "/docs")
 			if relSubPath == "" || relSubPath == "/" {
 				relSubPath = "index.html"
 			}
-			docsAsset := findFile(filepath.Join("public", "docs", filepath.Clean(relSubPath)))
+			docsAsset := findFile(under(filepath.Join("public", "docs"), relSubPath))
 			if info, err := os.Stat(docsAsset); err == nil && !info.IsDir() {
 				serveFile(docsAsset)
 				return
@@ -184,7 +191,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		}
 
 		// Main Web App (chat.joinchorus.app or localhost)
-		staticPath := findFile(filepath.Join(cfg.StaticDir, filepath.Clean(r.URL.Path)))
+		staticPath := findFile(under(cfg.StaticDir, r.URL.Path))
 		if info, err := os.Stat(staticPath); err == nil && !info.IsDir() {
 			serveFile(staticPath)
 			return
@@ -210,4 +217,10 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	handler = middleware.RequestID(handler)
 
 	return handler
+}
+
+// hasPathPrefix reports whether p is prefix itself or lies below it, matching on
+// whole path segments ("/landing" matches "/landing/x" but not "/landing..").
+func hasPathPrefix(p, prefix string) bool {
+	return p == prefix || strings.HasPrefix(p, prefix+"/")
 }

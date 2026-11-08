@@ -8,6 +8,9 @@ import (
 
 var (
 	isoCountryRegex = regexp.MustCompile(`^[A-Z]{2}$`)
+	// idBodyRegex is what may follow an ID prefix. IDs become directory and file
+	// names in the git store, so separators, dots and control characters are out.
+	idBodyRegex = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 )
 
 // ValidateTitle verifies title constraints (required, max 120 chars).
@@ -57,6 +60,9 @@ func ValidateID(id, prefix string) error {
 	}
 	if prefix != "" && !strings.HasPrefix(trimmed, prefix) {
 		return fmt.Errorf("%w: invalid id prefix format", ErrValidation)
+	}
+	if !idBodyRegex.MatchString(strings.TrimPrefix(trimmed, prefix)) {
+		return fmt.Errorf("%w: invalid id format", ErrValidation)
 	}
 	return nil
 }
