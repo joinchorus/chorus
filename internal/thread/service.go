@@ -9,7 +9,6 @@ import (
 	"chorus/internal/board"
 	"chorus/internal/conversationname"
 	"chorus/internal/domain"
-	"chorus/internal/http/httputil"
 	"chorus/internal/idgen"
 )
 
@@ -50,7 +49,9 @@ func NewService(repo Repository, idGen idgen.IDGenerator, nameGen conversationna
 	}
 }
 
-func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput, clientIP string) (*Thread, error) {
+// CreateThread opens a new thread. resolvedCountry is the ISO 3166-1 alpha-2
+// code the HTTP layer already resolved for the visitor (empty when unknown).
+func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput, resolvedCountry string) (*Thread, error) {
 	title := strings.TrimSpace(input.Title)
 	body := strings.TrimSpace(input.Body)
 
@@ -99,11 +100,7 @@ func (s *Service) CreateThread(ctx context.Context, input CreateThreadInput, cli
 		convName = s.nameGen.Generate(nil)
 	}
 
-	var countryPtr *string
-	if input.ShowCountry {
-		countryStr := httputil.ResolveCountryFromIP(clientIP)
-		countryPtr = &countryStr
-	}
+	countryPtr := displayCountry(input.ShowCountry, resolvedCountry)
 	if err := domain.ValidateCountry(countryPtr); err != nil {
 		return nil, err
 	}
@@ -219,7 +216,8 @@ func (s *Service) ListThreads(ctx context.Context, boardSlug ...string) ([]*Thre
 	return threads, nil
 }
 
-func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput, clientIP string) (*Message, error) {
+// AddMessage appends a reply. resolvedCountry has the same meaning as in CreateThread.
+func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateMessageInput, resolvedCountry string) (*Message, error) {
 	if err := domain.ValidateID(threadID, "thd_"); err != nil {
 		return nil, err
 	}
@@ -289,11 +287,7 @@ func (s *Service) AddMessage(ctx context.Context, threadID string, input CreateM
 		_ = s.repo.SaveParticipant(ctx, threadID, newParticipant)
 	}
 
-	var countryPtr *string
-	if input.ShowCountry {
-		countryStr := httputil.ResolveCountryFromIP(clientIP)
-		countryPtr = &countryStr
-	}
+	countryPtr := displayCountry(input.ShowCountry, resolvedCountry)
 	if err := domain.ValidateCountry(countryPtr); err != nil {
 		return nil, err
 	}
@@ -340,4 +334,21 @@ func (s *Service) ListMessages(ctx context.Context, threadID string) ([]*Message
 		return nil, err
 	}
 	return s.repo.ListMessagesByThreadID(ctx, threadID)
+}
+
+// unknownCountry is shown when the visitor opted in but no country could be resolved.
+const unknownCountry = "UN"
+
+// displayCountry returns the country to attach to a post, or nil when the
+// author did not opt in. resolvedCountry is already an ISO code, so it is only
+// normalized here, never re-resolved.
+func displayCountry(showCountry bool, resolvedCountry string) *string {
+	if !showCountry {
+		return nil
+	}
+	code := strings.ToUpper(strings.TrimSpace(resolvedCountry))
+	if code == "" {
+		code = unknownCountry
+	}
+	return &code
 }

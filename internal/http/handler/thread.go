@@ -30,7 +30,7 @@ type ThreadHandler struct {
 // NewThreadHandler constructs a concrete ThreadHandler instance.
 func NewThreadHandler(service ThreadService, geoSvc *geoip.Service) *ThreadHandler {
 	if geoSvc == nil {
-		geoSvc = geoip.NewService("TR")
+		geoSvc = geoip.NewService("TR", "")
 	}
 	return &ThreadHandler{
 		service: service,

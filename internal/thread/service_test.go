@@ -28,7 +28,7 @@ func TestThreadService_Operations(t *testing.T) {
 			Title:       "Architecture Discussion",
 			Body:        "Initial post body content",
 			ShowCountry: true,
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -66,7 +66,7 @@ func TestThreadService_Operations(t *testing.T) {
 		th, err := svc.CreateThread(ctx, thread.CreateThreadInput{
 			Title:            "Go Best Practices",
 			ConversationName: "Ash",
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed creating thread: %v", err)
 		}
@@ -76,7 +76,7 @@ func TestThreadService_Operations(t *testing.T) {
 			Body:             "Use interfaces where they add value.",
 			ConversationName: "Ash",
 			ShowCountry:      true,
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed adding message: %v", err)
 		}
@@ -99,7 +99,7 @@ func TestThreadService_Operations(t *testing.T) {
 			Title:            "Continuity Thread",
 			BoardSlug:        "programming",
 			ConversationName: "River",
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed creating thread: %v", err)
 		}
@@ -114,7 +114,7 @@ func TestThreadService_Operations(t *testing.T) {
 		reply1, err := svc.AddMessage(ctx, th.ID, thread.CreateMessageInput{
 			Body:             "First follow-up by OP",
 			ParticipantToken: th.ParticipantToken,
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed adding reply: %v", err)
 		}
@@ -128,7 +128,7 @@ func TestThreadService_Operations(t *testing.T) {
 		// A new participant joins without token -> gets a different name (e.g. Ash)
 		p2Reply, err := svc.AddMessage(ctx, th.ID, thread.CreateMessageInput{
 			Body: "Hello from participant 2",
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed adding participant 2 message: %v", err)
 		}
@@ -143,7 +143,7 @@ func TestThreadService_Operations(t *testing.T) {
 		p2Followup, err := svc.AddMessage(ctx, th.ID, thread.CreateMessageInput{
 			Body:             "Second reply by participant 2",
 			ParticipantToken: p2Reply.ParticipantToken,
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed adding participant 2 follow-up: %v", err)
 		}
@@ -186,7 +186,7 @@ func TestThreadService_Operations(t *testing.T) {
 		// Security Test 2: Token from Thread A cannot authenticate in Thread B
 		thB, err := svc.CreateThread(ctx, thread.CreateThreadInput{
 			Title: "Thread B For Isolation Test",
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed creating Thread B: %v", err)
 		}
@@ -195,7 +195,7 @@ func TestThreadService_Operations(t *testing.T) {
 		crossReply, err := svc.AddMessage(ctx, thB.ID, thread.CreateMessageInput{
 			Body:             "Attempting cross-thread token reuse",
 			ParticipantToken: th.ParticipantToken, // Token from Thread A
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed adding message: %v", err)
 		}
@@ -211,7 +211,7 @@ func TestThreadService_Operations(t *testing.T) {
 		th, err := svc.CreateThread(ctx, thread.CreateThreadInput{
 			Title:     "Philosophy of Tech",
 			BoardSlug: "philosophy",
-		}, "127.0.0.1")
+		}, "TR")
 		if err != nil {
 			t.Fatalf("failed creating thread: %v", err)
 		}
@@ -240,7 +240,7 @@ func TestThreadService_Operations(t *testing.T) {
 		_, err = svc.CreateThread(ctx, thread.CreateThreadInput{
 			Title:     "Invalid Board Thread",
 			BoardSlug: "nonexistent_secret_board",
-		}, "127.0.0.1")
+		}, "TR")
 		if !errors.Is(err, domain.ErrValidation) {
 			t.Errorf("expected ErrValidation for invalid board slug, got %v", err)
 		}
@@ -249,7 +249,7 @@ func TestThreadService_Operations(t *testing.T) {
 	t.Run("validation failure on title length", func(t *testing.T) {
 		_, err := svc.CreateThread(ctx, thread.CreateThreadInput{
 			Title: "",
-		}, "127.0.0.1")
+		}, "TR")
 		if !errors.Is(err, domain.ErrValidation) {
 			t.Errorf("expected ErrValidation for empty title, got %v", err)
 		}

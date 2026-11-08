@@ -18,10 +18,13 @@ var ErrInsecureAdminToken = errors.New(
 
 // Config holds the application configuration.
 type Config struct {
-	Port         string
-	Environment  string
-	DataDir      string
-	AdminToken   string
+	Port        string
+	Environment string
+	DataDir     string
+	AdminToken  string
+	// EdgeSecret is the shared secret Cloudflare adds as X-Chorus-Edge. When set,
+	// CF-IPCountry is believed for requests that carry it. Empty disables it.
+	EdgeSecret   string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
@@ -39,6 +42,7 @@ func Load() *Config {
 		Environment:  env,
 		DataDir:      dataDir,
 		AdminToken:   adminToken,
+		EdgeSecret:   getEnv("CHORUS_EDGE_SECRET", ""),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

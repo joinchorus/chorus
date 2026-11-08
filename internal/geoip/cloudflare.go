@@ -8,7 +8,8 @@ import (
 	"chorus/internal/domain"
 )
 
-// HeaderProvider resolves country codes directly from trusted reverse proxy headers (Cloudflare CF-IPCountry, AppEngine, etc.).
+// HeaderProvider reads the country code Cloudflare puts in CF-IPCountry. Callers
+// must only use it for requests proven to come through Cloudflare.
 type HeaderProvider struct{}
 
 // NewHeaderProvider constructs a HeaderProvider.
@@ -25,24 +26,15 @@ func (h *HeaderProvider) ResolveCountry(ctx context.Context, ipStr string) (stri
 	return "UN", nil
 }
 
-// ResolveFromRequest inspects request headers for edge proxy country codes.
+// ResolveFromRequest returns the CF-IPCountry code, or "" when absent or unusable.
 func (h *HeaderProvider) ResolveFromRequest(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
 
-	// 1. Cloudflare CF-IPCountry header
 	if cfCountry := r.Header.Get("CF-IPCountry"); cfCountry != "" {
 		code := strings.ToUpper(strings.TrimSpace(cfCountry))
 		if err := domain.ValidateCountry(&code); err == nil && code != "" && code != "XX" && code != "T1" {
-			return code
-		}
-	}
-
-	// 2. GCP / AppEngine X-Appengine-Country header
-	if gcpCountry := r.Header.Get("X-Appengine-Country"); gcpCountry != "" {
-		code := strings.ToUpper(strings.TrimSpace(gcpCountry))
-		if err := domain.ValidateCountry(&code); err == nil && code != "" {
 			return code
 		}
 	}

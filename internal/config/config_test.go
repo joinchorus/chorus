@@ -37,3 +37,18 @@ func TestLoadFallsBackToPlaceholder(t *testing.T) {
 		t.Fatalf("expected placeholder token, got %q", got)
 	}
 }
+
+func TestLoadEdgeSecret(t *testing.T) {
+	t.Run("empty by default", func(t *testing.T) {
+		t.Setenv("CHORUS_EDGE_SECRET", "")
+		if got := Load().EdgeSecret; got != "" {
+			t.Errorf("EdgeSecret must default to empty, got %q", got)
+		}
+	})
+	t.Run("read from the environment", func(t *testing.T) {
+		t.Setenv("CHORUS_EDGE_SECRET", "abc123")
+		if got := Load().EdgeSecret; got != "abc123" {
+			t.Errorf("got %q, want abc123", got)
+		}
+	})
+}
